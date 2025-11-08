@@ -1,0 +1,62 @@
+# Prettier ignore patterns
+# https://prettier.io/docs/en/ignore.html
+
+# Dependencies
+node_modules/
+.pnp/
+.pnp.js
+
+# Build outputs
+build/
+dist/
+out/
+.next/
+.nuxt/
+.cache/
+coverage/
+
+# Generated files
+*.min.js
+*.min.css
+*.bundle.js
+*.chunk.js
+
+# Lock files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Logs
+*.log
+
+# Environment files
+.env*
+
+# Configuration files that shouldn't be formatted
+.gitignore
+.eslintignore
+.prettierignore
+
+# Binary files
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.ico
+*.svg
+*.woff
+*.woff2
+*.ttf
+*.eot
+
+# Documentation that should preserve formatting
+CHANGELOG.md
+LICENSE*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/

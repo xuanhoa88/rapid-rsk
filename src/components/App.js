@@ -1,0 +1,40 @@
+/**
+ * React Starter Kit (https://github.com/xuanhoa88/rapid-rsk/)
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE.txt file in the root directory of this source tree.
+ */
+
+import StyleContext from 'isomorphic-style-loader/StyleContext';
+import PropTypes from 'prop-types';
+import React from 'react';
+import { I18nextProvider } from 'react-i18next';
+import { Provider as ReduxProvider } from 'react-redux';
+
+// eslint-disable-next-line react/prop-types
+export default function App({ context, insertCss, children }) {
+  return (
+    <ReduxProvider store={context.store}>
+      <StyleContext.Provider value={{ insertCss }}>
+        <I18nextProvider i18n={context.i18n}>
+          {React.Children.only(children)}
+        </I18nextProvider>
+      </StyleContext.Provider>
+    </ReduxProvider>
+  );
+}
+
+const ContextType = {
+  // Redux store
+  store: PropTypes.object.isRequired,
+  // Universal HTTP client
+  fetch: PropTypes.func.isRequired,
+  pathname: PropTypes.string.isRequired,
+  query: PropTypes.object,
+};
+
+App.propTypes = {
+  context: PropTypes.shape(ContextType).isRequired,
+  // Enables critical path CSS rendering
+  insertCss: PropTypes.func.isRequired,
+};

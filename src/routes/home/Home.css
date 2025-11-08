@@ -1,0 +1,52 @@
+/**
+ * React Starter Kit (https://github.com/xuanhoa88/rapid-rsk/)
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE.txt file in the root directory of this source tree.
+ */
+
+@import '../../components/variables.css';
+
+.root {
+  padding-right: 20px;
+  padding-left: 20px;
+}
+
+.container {
+  max-width: var(--max-content-width);
+  margin: 0 auto;
+  padding: 0 0 40px;
+}
+
+.newsItem {
+  margin: 0 0 2rem;
+}
+
+.newsTitle {
+  font-size: 1.5rem;
+}
+
+.newsDesc {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-size: 1.125rem;
+  }
+
+  pre {
+    font-size: 0.875rem;
+    white-space: pre-wrap;
+  }
+
+  img {
+    max-width: 100%;
+  }
+}
+
+.publishedDate {
+  color: #777;
+  font-size: 0.8em;
+}

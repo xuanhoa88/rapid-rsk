@@ -1,0 +1,259 @@
+# Deployment Guide
+
+## Overview
+
+React Starter Kit uses `webpack-node-externals` for server bundling:
+- ✅ Small server bundle (~530KB)
+- ✅ Requires `node_modules/` at runtime
+- ✅ Must run `npm install --production` after build
+
+## Quick Start
+
+### 1. Build
+
+```bash
+npm run build
+```
+
+**Output:**
+```
+build/
+  ├── server.js              # Server bundle
+  ├── vendors.js             # Server vendors
+  ├── chunk-manifest.json    # Chunk mapping
+  ├── package.json           # Dependencies (generated)
+  └── public/assets/         # Client bundles
+```
+
+### 2. Install Production Dependencies
+
+```bash
+npm install --production
+```
+
+**Required!** Server bundle needs `node_modules/` at runtime.
+
+### 3. Run
+
+```bash
+NODE_ENV=production node build/server.js
+```
+
+## Docker Deployment (Recommended)
+
+### Dockerfile
+
+Already configured in project root. Uses multi-stage build:
+
+```dockerfile
+# Build stage: npm ci + npm run build
+# Production stage: npm install --production + copy build/
+```
+
+### Build & Run
+
+```bash
+# Build image
+docker build -t my-app .
+
+# Run container
+docker run -p 3000:3000 \
+  -e NODE_ENV=production \
+  -e RSK_JWT_SECRET=your-secret \
+  my-app
+```
+
+### docker-compose.yml
+
+```yaml
+version: '3.8'
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - RSK_PORT=3000
+      - RSK_JWT_SECRET=${JWT_SECRET}
+```
+
+```bash
+docker-compose up -d
+```
+
+## Traditional Server
+
+### Deploy Files
+
+```bash
+# Build locally
+npm run build
+npm install --production
+
+# Deploy to server
+rsync -av build/ node_modules/ package*.json server:/app/
+
+# On server
+cd /app
+NODE_ENV=production node build/server.js
+```
+
+### With PM2
+
+```bash
+# Install PM2
+npm install -g pm2
+
+# Start
+pm2 start build/server.js --name my-app -i max
+
+# Save
+pm2 save
+pm2 startup
+```
+
+## Environment Variables
+
+### Development
+
+Use `.env` file (automatically loaded):
+
+```bash
+cp .env.example .env
+npm start
+```
+
+### Production
+
+Set directly on server (don't deploy `.env` file):
+
+```bash
+export NODE_ENV=production
+export RSK_PORT=3000
+export RSK_JWT_SECRET=your-secret
+export RSK_DATABASE_URL=postgresql://...
+node build/server.js
+```
+
+See [environment-variables.md](environment-variables.md) for complete guide.
+
+## Verification
+
+### Check Build
+
+```bash
+# Files exist
+ls build/server.js build/vendors.js build/public/assets/
+
+# node_modules present
+ls node_modules/ | wc -l
+```
+
+### Test Locally
+
+```bash
+NODE_ENV=production node build/server.js &
+curl http://localhost:3000/
+kill %1
+```
+
+## Troubleshooting
+
+### "Cannot find module 'react'"
+
+**Cause:** Production dependencies not installed
+
+**Fix:**
+```bash
+npm install --production
+```
+
+### "Cannot find module './chunk-manifest.json'"
+
+**Cause:** chunk-manifest.json missing
+
+**Fix:**
+```bash
+# Ensure it's deployed
+ls build/chunk-manifest.json
+```
+
+### Server starts but pages don't load
+
+**Cause:** Static files missing
+
+**Fix:**
+```bash
+# Ensure public/ is deployed
+ls build/public/assets/
+```
+
+## CI/CD Example
+
+### GitHub Actions
+
+```yaml
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build
+        run: npm run build
+      
+      - name: Install production deps
+        run: npm install --production
+      
+      - name: Deploy
+        run: |
+          rsync -av build/ node_modules/ ${{ secrets.SERVER }}:/app/
+          ssh ${{ secrets.SERVER }} "pm2 restart my-app"
+```
+
+## Summary
+
+### Required Steps
+
+1. ✅ `npm run build`
+2. ✅ `npm install --production` (REQUIRED!)
+3. ✅ Deploy `build/` + `node_modules/`
+4. ✅ Set environment variables
+5. ✅ Run `node build/server.js`
+
+### What to Deploy
+
+```
+✅ build/              # Built files
+✅ node_modules/       # Production dependencies
+✅ package.json        # For npm install
+✅ package-lock.json   # For reproducible installs
+```
+
+### What NOT to Deploy
+
+```
+❌ src/               # Source code
+❌ tools/             # Build tools
+❌ .env               # Use server env vars
+❌ .git/              # Git history
+```
+
+---
+
+**Key Point:** Server bundle requires `node_modules/` at runtime. Always run `npm install --production` after building!

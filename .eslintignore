@@ -1,0 +1,50 @@
+# ESLint ignore patterns
+# https://eslint.org/docs/user-guide/configuring/ignoring-code
+
+# Dependencies
+node_modules/
+.pnp/
+.pnp.js
+
+# Build outputs
+build/
+dist/
+out/
+.next/
+.nuxt/
+.cache/
+coverage/
+
+# Generated files
+*.min.js
+*.bundle.js
+
+# Service workers
+sw.js
+workbox-*.js
+
+# Temporary files
+*.tmp
+*.temp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Environment files
+.env*
+
+# Lock files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# JSON files (not JavaScript)
+*.json

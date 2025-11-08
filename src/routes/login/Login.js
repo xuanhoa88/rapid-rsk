@@ -1,0 +1,117 @@
+/**
+ * React Starter Kit (https://github.com/xuanhoa88/rapid-rsk/)
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE.txt file in the root directory of this source tree.
+ */
+
+import withStyles from 'isomorphic-style-loader/withStyles';
+import PropTypes from 'prop-types';
+import { useState } from 'react';
+import s from './Login.css';
+
+function Login({ title, fetch }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async e => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // Redirect to home page on success
+        window.location.href = '/';
+      } else {
+        setError(data.error || 'Authentication failed');
+      }
+    } catch (err) {
+      setError('Network error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className={s.root}>
+      <div className={s.container}>
+        <h1>{title}</h1>
+        <p className={s.lead}>Log in with your email address</p>
+
+        {error && (
+          <div className={s.error}>
+            <strong>Error:</strong> {error}
+          </div>
+        )}
+
+        <form method='post' onSubmit={handleSubmit}>
+          <div className={s.formGroup}>
+            <label className={s.label} htmlFor='email'>
+              Email address:
+              <input
+                className={s.input}
+                id='email'
+                type='email'
+                name='email'
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
+                // eslint-disable-next-line jsx-a11y/no-autofocus
+                autoFocus
+              />
+            </label>
+          </div>
+          <div className={s.formGroup}>
+            <label className={s.label} htmlFor='password'>
+              Password:
+              <input
+                className={s.input}
+                id='password'
+                type='password'
+                name='password'
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+              />
+            </label>
+          </div>
+          <div className={s.formGroup}>
+            <a href='/reset-password' className={s.buttonLink}>
+              Forgot password?
+            </a>
+          </div>
+          <div className={s.formGroup}>
+            <button className={s.button} type='submit' disabled={loading}>
+              {loading ? 'Please wait...' : 'Log in'}
+            </button>
+          </div>
+        </form>
+        <div className={s.formGroup}>
+          <a href='/register' className={s.buttonLink}>
+            Don&apos;t have an account? Register
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+Login.propTypes = {
+  title: PropTypes.string.isRequired,
+  fetch: PropTypes.func.isRequired,
+};
+
+export default withStyles(s)(Login);

@@ -1,0 +1,21 @@
+{
+  "header": {
+    "banner": {
+      "desc": "Komplexní aplikace jednodušše",
+      "title": "React"
+    },
+    "brand": "Vaše firma"
+  },
+  "navigation": {
+    "about": "O nás",
+    "contact": "Kontakt",
+    "login": "Přihlásit",
+    "signup": "Registrace",
+    "separator": {
+      "or": "nebo"
+    }
+  },
+  "login": {
+    "title": "Přihlásit"
+  }
+}

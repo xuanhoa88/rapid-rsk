@@ -1,0 +1,46 @@
+# Stylelint ignore patterns
+# https://stylelint.io/user-guide/ignore-code
+
+# Dependencies
+node_modules/
+.pnp/
+.pnp.js
+
+# Build outputs
+build/
+dist/
+out/
+.next/
+.nuxt/
+.cache/
+coverage/
+
+# Generated files
+*.min.css
+*.bundle.css
+
+# Vendor CSS files
+vendor/
+vendors/
+third-party/
+
+# CSS frameworks (if using CDN versions)
+bootstrap*.css
+foundation*.css
+bulma*.css
+tailwind*.css
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+
+# Temporary files
+*.tmp
+*.temp

@@ -1,0 +1,21 @@
+{
+  "login": {
+    "title": "Log In"
+  },
+  "header": {
+    "banner": {
+      "desc": "Complex web apps made easy",
+      "title": "React"
+    },
+    "brand": "Your Company Brand"
+  },
+  "navigation": {
+    "about": "About",
+    "contact": "Contact",
+    "login": "Log in",
+    "separator": {
+      "or": "or"
+    },
+    "signup": "Sign up"
+  }
+}

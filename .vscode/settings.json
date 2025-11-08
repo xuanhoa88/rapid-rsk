@@ -1,0 +1,57 @@
+{
+  // Editor settings
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit",
+    "source.fixAll.stylelint": "explicit"
+  },
+  "editor.detectIndentation": false,
+  "editor.tabSize": 2,
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  // Auto-save configuration
+  "files.autoSave": "onFocusChange",
+  "files.autoSaveDelay": 1000,
+  // ESLint validation
+  "eslint.validate": ["javascript", "javascriptreact"],
+  // File type associations
+  "files.associations": {
+    ".eslintignore": "ignore",
+    ".eslintrc": "jsonc",
+    ".prettierrc": "jsonc"
+  },
+  "files.exclude": {
+    "**/.DS_Store": true,
+    "**/Thumbs.db": true,
+    "**/node_modules": false
+  },
+  // Prettier integration
+  "prettier.requireConfig": true,
+  // Search exclusions
+  "search.exclude": {
+    ".eslintcache": true,
+    ".git": true,
+    "*.lock": true,
+    "node_modules": true,
+    "**/.cache": true,
+    "**/__snapshots__": true,
+    "**/coverage": true,
+    "**/build": true
+  },
+  // Language-specific settings
+  "[css]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[javascriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  // Stylelint configuration
+  "stylelint.enable": true,
+  "stylelint.validate": ["css"],
+  "css.validate": false
+}
