@@ -5,7 +5,6 @@
  * LICENSE.txt file in the root directory of this source tree.
  */
 
-import withStyles from 'isomorphic-style-loader/withStyles';
 import Link from '../Link';
 import s from './Footer.css';
 
@@ -35,4 +34,4 @@ function Footer() {
   );
 }
 
-export default withStyles(s)(Footer);
+export default Footer;

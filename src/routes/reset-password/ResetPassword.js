@@ -5,7 +5,6 @@
  * LICENSE.txt file in the root directory of this source tree.
  */
 
-import withStyles from 'isomorphic-style-loader/withStyles';
 import PropTypes from 'prop-types';
 import { useState } from 'react';
 import s from './ResetPassword.css';
@@ -49,10 +48,6 @@ function ResetPassword({ title, fetch }) {
     <div className={s.root}>
       <div className={s.container}>
         <h1>{title}</h1>
-        <p className={s.lead}>
-          Enter your email address and we&apos;ll send you a link to reset your
-          password.
-        </p>
 
         {error && (
           <div className={s.error}>
@@ -104,4 +99,4 @@ ResetPassword.propTypes = {
   fetch: PropTypes.func.isRequired,
 };
 
-export default withStyles(s)(ResetPassword);
+export default ResetPassword;

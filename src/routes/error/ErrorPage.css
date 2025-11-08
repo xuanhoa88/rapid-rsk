@@ -5,27 +5,93 @@
  * LICENSE.txt file in the root directory of this source tree.
  */
 
-html {
+/* Error page wrapper - overrides global styles */
+.errorPageWrapper {
+  /* Override global html/body styles */
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--color-background-secondary);
+  z-index: 9999;
+  font-family: var(--font-family-base);
+}
+
+/* Override global styles for error page */
+.errorPageWrapper :global(html),
+.errorPageWrapper :global(body) {
+  margin: 0;
+  padding: 0;
+}
+
+.container {
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
-  height: 100%;
-  padding: 0 2rem;
-  color: #888;
-  font-family: sans-serif;
+  min-height: 100vh;
+  padding: var(--spacing-8);
   text-align: center;
 }
 
-body {
-  margin: 0;
+.title {
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-4xl);
+  margin: 0 0 var(--spacing-4);
+  line-height: var(--line-height-tight);
 }
 
-h1 {
-  color: #555;
-  font-weight: 400;
+.subtitle {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-normal);
+  margin: 0 0 var(--spacing-8);
 }
 
-pre {
+.details {
   text-align: left;
   white-space: pre-wrap;
+  margin: var(--spacing-6) 0;
+  padding: var(--spacing-6);
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  color: var(--color-text-secondary);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  max-width: 800px;
+  overflow-x: auto;
+  box-shadow: var(--shadow-sm);
+}
+
+.errorCode {
+  font-size: var(--font-size-5xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-error);
+  margin: 0 0 var(--spacing-2);
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: var(--spacing-6) var(--spacing-4);
+  }
+
+  .title {
+    font-size: var(--font-size-3xl);
+  }
+
+  .subtitle {
+    font-size: var(--font-size-lg);
+  }
+
+  .errorCode {
+    font-size: var(--font-size-4xl);
+  }
+
+  .details {
+    padding: var(--spacing-4);
+    font-size: var(--font-size-xs);
+  }
 }

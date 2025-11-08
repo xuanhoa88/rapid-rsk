@@ -3,8 +3,6 @@
 /**
  * React Starter Kit (https://github.com/xuanhoa88/rapid-rsk/)
  *
- * Copyright © 2014-present. All rights reserved.
- *
  * This source code is licensed under the MIT license found in the
  * LICENSE.txt file in the root directory of this source tree.
  */
@@ -15,14 +13,12 @@ require('dotenv').config();
 import ReactRefreshWebpackPlugin from '@pmmmwh/react-refresh-webpack-plugin';
 import browserSync from 'browser-sync';
 import express from 'express';
-import errorOverlayMiddleware from 'react-dev-utils/errorOverlayMiddleware';
 import webpack from 'webpack';
 import webpackDevMiddleware from 'webpack-dev-middleware';
 import webpackHotMiddleware from 'webpack-hot-middleware';
 import config from '../config';
 import { BuildError, setupGracefulShutdown } from '../lib/errorHandler';
 import { isSilent, isVerbose, logError, logInfo } from '../lib/logger';
-import run from '../run';
 import { clientConfig, SERVER_BUNDLE_PATH, serverConfig } from '../webpack';
 import clean from './clean';
 
@@ -349,11 +345,10 @@ async function main() {
 
   try {
     // Clean build directory
-    await run(clean);
+    await clean();
 
     // Setup Express server
     server = express();
-    server.use(errorOverlayMiddleware());
     server.use(express.static(config.PUBLIC_DIR));
 
     // Setup webpack

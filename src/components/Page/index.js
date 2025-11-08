@@ -5,7 +5,6 @@
  * LICENSE.txt file in the root directory of this source tree.
  */
 
-import withStyles from 'isomorphic-style-loader/withStyles';
 import PropTypes from 'prop-types';
 import s from './Page.css';
 
@@ -25,4 +24,4 @@ Page.propTypes = {
   html: PropTypes.string.isRequired,
 };
 
-export default withStyles(s)(Page);
+export default Page;

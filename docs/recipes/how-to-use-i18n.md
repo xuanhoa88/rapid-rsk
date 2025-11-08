@@ -11,7 +11,7 @@ import { useTranslation } from 'react-i18next';
 
 function MyComponent() {
   const { t } = useTranslation();
-  
+
   return (
     <div>
       <h1>{t('header.brand')}</h1>
@@ -24,6 +24,7 @@ function MyComponent() {
 ### Available Languages
 
 Currently supported languages:
+
 - **English (US)** - `en-US` (default)
 - **Czech** - `cs-CZ`
 
@@ -51,7 +52,7 @@ Translations use nested JSON format:
     "about": "About",
     "contact": "Contact",
     "login": "Log in",
-    "signup": "Sign up"
+    "register": "Register"
   }
 }
 ```
@@ -64,7 +65,7 @@ Translations use nested JSON format:
 const { t } = useTranslation();
 
 // Basic translation
-<span>{t('navigation.about')}</span>
+<span>{t('navigation.about')}</span>;
 ```
 
 ### 2. Translation with Variables
@@ -113,11 +114,11 @@ import { useTranslation } from 'react-i18next';
 
 function LanguageSwitcher() {
   const { i18n } = useTranslation();
-  
-  const changeLanguage = (lng) => {
+
+  const changeLanguage = lng => {
     i18n.changeLanguage(lng);
   };
-  
+
   return (
     <div>
       <button onClick={() => changeLanguage('en-US')}>English</button>
@@ -139,22 +140,20 @@ import { initReactI18next } from 'react-i18next';
 import enUS from './translations/en-US.json';
 import csCZ from './translations/cs-CZ.json';
 
-i18n
-  .use(initReactI18next)
-  .init({
-    resources: {
-      'en-US': { translation: enUS },
-      'cs-CZ': { translation: csCZ },
-    },
-    lng: 'en-US',              // Default language
-    fallbackLng: 'en-US',      // Fallback language
-    interpolation: {
-      escapeValue: false,      // React already escapes
-    },
-    react: {
-      useSuspense: false,      // Important for SSR
-    },
-  });
+i18n.use(initReactI18next).init({
+  resources: {
+    'en-US': { translation: enUS },
+    'cs-CZ': { translation: csCZ },
+  },
+  lng: 'en-US', // Default language
+  fallbackLng: 'en-US', // Fallback language
+  interpolation: {
+    escapeValue: false, // React already escapes
+  },
+  react: {
+    useSuspense: false, // Important for SSR
+  },
+});
 
 export default i18n;
 ```
@@ -171,9 +170,9 @@ test('renders correctly', () => {
   const wrapper = render(
     <I18nextProvider i18n={i18n}>
       <MyComponent />
-    </I18nextProvider>
+    </I18nextProvider>,
   );
-  
+
   expect(wrapper).toMatchSnapshot();
 });
 ```
@@ -183,7 +182,7 @@ test('renders correctly', () => {
 ```javascript
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key) => key,
+    t: key => key,
     i18n: {
       changeLanguage: jest.fn(),
       language: 'en-US',
@@ -195,6 +194,7 @@ jest.mock('react-i18next', () => ({
 ## Adding a New Language
 
 1. **Create translation file**
+
    ```bash
    cp src/i18n/translations/en-US.json src/i18n/translations/de-DE.json
    ```
@@ -203,10 +203,11 @@ jest.mock('react-i18next', () => ({
    Edit `de-DE.json` with German translations
 
 3. **Import in configuration**
+
    ```javascript
    // src/i18n/index.js
    import deDE from './translations/de-DE.json';
-   
+
    i18n.init({
      resources: {
        'en-US': { translation: enUS },
@@ -247,29 +248,29 @@ jest.mock('react-i18next', () => ({
 
 ```javascript
 // ✅ Good
-t('navigation.login')
-t('form.submit')
+t('navigation.login');
+t('form.submit');
 
 // ❌ Bad
-t('nav1')
-t('btn2')
+t('nav1');
+t('btn2');
 ```
 
 ### 3. Use Interpolation for Dynamic Content
 
 ```javascript
 // ✅ Good
-t('welcome', { name: user.name })
-
-// ❌ Bad
-`${t('welcome')} ${user.name}`
+t('welcome', {
+  name: user.name,
+}) // ❌ Bad
+`${t('welcome')} ${user.name}`;
 ```
 
 ### 4. Handle Missing Translations
 
 ```javascript
 // Translation will fall back to fallbackLng if key is missing
-t('missing.key') // Falls back to English
+t('missing.key'); // Falls back to English
 ```
 
 ## Native Intl API
@@ -315,9 +316,9 @@ formatter.format(amount); // "$1,234.56"
 ```javascript
 const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
 
-rtf.format(-1, 'day');    // "yesterday"
-rtf.format(2, 'day');     // "in 2 days"
-rtf.format(-3, 'month');  // "3 months ago"
+rtf.format(-1, 'day'); // "yesterday"
+rtf.format(2, 'day'); // "in 2 days"
+rtf.format(-3, 'month'); // "3 months ago"
 ```
 
 ## Troubleshooting
@@ -327,6 +328,7 @@ rtf.format(-3, 'month');  // "3 months ago"
 **Problem:** Translation keys showing instead of text
 
 **Solution:**
+
 1. Check translation file exists in `src/i18n/translations/`
 2. Verify translation key is correct
 3. Ensure `I18nextProvider` wraps your app
@@ -337,6 +339,7 @@ rtf.format(-3, 'month');  // "3 months ago"
 **Problem:** Language doesn't change when switching
 
 **Solution:**
+
 ```javascript
 // Make sure to use i18n.changeLanguage()
 import i18n from 'src/i18n';
@@ -351,6 +354,7 @@ i18n.changeLanguage('cs-CZ');
 
 **Solution:**
 Ensure `useSuspense: false` in i18n config:
+
 ```javascript
 i18n.init({
   react: {

@@ -5,23 +5,28 @@
  * LICENSE.txt file in the root directory of this source tree.
  */
 
-import withStyles from 'isomorphic-style-loader/withStyles';
 import PropTypes from 'prop-types';
+import Link from '../../components/Link';
 import s from './NotFound.css';
 
-function NotFound({ title }) {
+function NotFound({ title = 'Page Not Found' }) {
   return (
     <div className={s.root}>
       <div className={s.container}>
-        <h1>{title}</h1>
-        <p>Sorry, the page you were trying to view does not exist.</p>
+        <h1 className={s.title}>{title}</h1>
+        <p className={s.message}>
+          Sorry, the page you were trying to view does not exist.
+        </p>
+        <Link className={s.link} to='/'>
+          Go Home
+        </Link>
       </div>
     </div>
   );
 }
 
 NotFound.propTypes = {
-  title: PropTypes.string.isRequired,
+  title: PropTypes.string,
 };
 
-export default withStyles(s)(NotFound);
+export default NotFound;

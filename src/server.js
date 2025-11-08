@@ -11,6 +11,7 @@ import express from 'express';
 import expressProxy from 'express-http-proxy';
 import expressJwt, { UnauthorizedError as Jwt401Error } from 'express-jwt';
 import requestLanguage from 'express-request-language';
+import { ChunkExtractor } from '@loadable/server';
 import nodeFetch from 'node-fetch';
 import path from 'path';
 import PrettyError from 'pretty-error';
@@ -20,8 +21,6 @@ import { setLocale } from './actions/intl';
 import { setRuntimeVariable } from './actions/runtime';
 import { apiModels } from './api';
 import apiRoutes from './api/routes';
-// eslint-disable-next-line import/no-unresolved
-import chunks from './chunk-manifest.json';
 import App from './components/App';
 import Html from './components/Html';
 import { createFetch } from './createFetch';
@@ -41,56 +40,50 @@ import configureStore from './store/configureStore';
 const i18n = getI18nInstance();
 
 /**
- * Load JavaScript chunks for a route
+ * Setup @loadable/component ChunkExtractor for CSS and JS extraction
+ * Load once at startup, reuse for all requests (stats file is static after build)
  */
-const loadChunks = route => {
-  const scripts = new Set();
+const statsFile = path.resolve(__dirname, 'loadable-stats.json');
+const webExtractor = new ChunkExtractor({
+  statsFile,
+  entrypoints: ['client'],
+});
 
-  const addChunk = chunk => {
-    if (chunks[chunk]) {
-      chunks[chunk].forEach(asset => scripts.add(asset));
-    } else if (__DEV__) {
-      // In development, webpack-dev-middleware serves chunks from memory
-      // So missing chunks in manifest are expected for code-split routes
-      console.warn(
-        `Chunk '${chunk}' not found in manifest (expected in dev mode)`,
-      );
-    }
+/**
+ * Extract CSS and JS chunks from webExtractor
+ * Converts React elements to plain objects for Html component
+ * @returns {Object} Object with styles, styleLinks, and scripts arrays
+ */
+function extractChunks() {
+  const linkTags = webExtractor.getLinkElements(); // CSS <link> tags
+  const styleTags = webExtractor.getStyleElements(); // Inline <style> tags
+  const scriptTags = webExtractor.getScriptElements(); // JS <script> tags
+
+  return {
+    styles: styleTags.map((tag, index) => ({
+      id: `loadable-style-${index}`,
+      // eslint-disable-next-line no-underscore-dangle
+      cssText: tag.props.dangerouslySetInnerHTML?.__html || '',
+    })),
+    styleLinks: linkTags.map(tag => tag.props.href),
+    scripts: scriptTags.map(tag => tag.props.src).filter(Boolean),
   };
-
-  try {
-    addChunk('client');
-    if (route.chunk) addChunk(route.chunk);
-    if (route.chunks) route.chunks.forEach(addChunk);
-  } catch (error) {
-    if (__DEV__) throw error;
-    // Production fallback: client bundle only
-    scripts.clear();
-    if (chunks.client) chunks.client.forEach(asset => scripts.add(asset));
-  }
-
-  return Array.from(scripts);
-};
+}
 
 /**
  * Log performance metrics in development
  */
-const logPerformance = (req, renderTime, html, cssText) => {
+const logPerformance = (req, renderTime, html) => {
   if (!__DEV__) return;
 
   const htmlSizeKB = (html.length / 1024).toFixed(2);
-  const cssSizeKB = (cssText.length / 1024).toFixed(2);
-  const metrics = `${renderTime}ms, HTML: ${htmlSizeKB}KB, CSS: ${cssSizeKB}KB`;
+  const metrics = `${renderTime}ms, HTML: ${htmlSizeKB}KB`;
 
   if (renderTime > 1000) {
-    console.warn(`⚠️  Slow render: ${req.path} (${metrics})`);
+    console.warn(`🐌 Slow render: ${req.path} (${metrics})`);
   } else if (renderTime > 500) {
     // eslint-disable-next-line no-console
     console.log(`⏱️  Render: ${req.path} (${metrics})`);
-  }
-
-  if (cssText.length > 100000) {
-    console.warn(`⚠️  Large CSS: ${cssSizeKB}KB`);
   }
 
   // eslint-disable-next-line no-console
@@ -198,12 +191,6 @@ app.get('*', async (req, res, next) => {
   const startTime = Date.now();
 
   try {
-    // Setup CSS collection
-    const css = new Set();
-    const insertCss = (...styles) => {
-      styles.forEach(style => css.add(style._getCss())); // eslint-disable-line
-    };
-
     // Create fetch client
     const fetch = createFetch(nodeFetch, {
       baseUrl:
@@ -263,14 +250,13 @@ app.get('*', async (req, res, next) => {
       type: route.type || 'website',
     };
 
-    // Render React app to string
+    // Render React app to string with @loadable chunk collection
     const reactRenderStart = performance.now();
     try {
-      data.children = ReactDOM.renderToString(
-        <App context={context} insertCss={insertCss}>
-          {route.component}
-        </App>,
+      const jsx = webExtractor.collectChunks(
+        <App context={context}>{route.component}</App>,
       );
+      data.children = ReactDOM.renderToString(jsx);
     } catch (renderError) {
       // Preserve original error stack and add context
       const error = new Error(
@@ -294,19 +280,11 @@ app.get('*', async (req, res, next) => {
       );
     }
 
-    // Collect CSS and scripts
-    const cssText = [...css].join('');
-    const cssSize = Buffer.byteLength(cssText, 'utf8');
-
-    // Warn about large CSS in development
-    if (__DEV__ && cssSize > 100000) {
-      console.warn(
-        `⚠️ Large CSS bundle: ${(cssSize / 1024).toFixed(1)}KB for ${req.path}`,
-      );
-    }
-
-    data.styles = [{ id: 'css', cssText }];
-    data.scripts = loadChunks(route);
+    // Extract CSS and JS chunks using @loadable/server
+    const chunks = extractChunks();
+    data.styles = chunks.styles;
+    data.styleLinks = chunks.styleLinks;
+    data.scripts = chunks.scripts;
 
     // Serialize app state
     data.app = {
@@ -337,7 +315,7 @@ app.get('*', async (req, res, next) => {
     res.send(`<!doctype html>${html}`);
 
     // Log performance
-    logPerformance(req, renderTime, html, cssText);
+    logPerformance(req, renderTime, html);
   } catch (err) {
     console.error('❌ SSR Error:', err.message, 'Path:', req.path);
     if (__DEV__) console.error(err.stack);
@@ -366,19 +344,30 @@ app.use((err, req, res) => {
   const locale = req.language || 'en-US';
 
   try {
-    const html = ReactDOM.renderToStaticMarkup(
-      <Html
-        title='Internal Server Error'
-        description={err.message}
-        app={{ lang: locale }}
-      >
-        {ReactDOM.renderToString(
-          <I18nextProvider i18n={i18n}>
-            <ErrorPage error={err} />
-          </I18nextProvider>,
-        )}
-      </Html>,
+    // Render error page with @loadable chunk collection
+    const jsx = webExtractor.collectChunks(
+      <I18nextProvider i18n={i18n}>
+        <ErrorPage error={err} />
+      </I18nextProvider>,
     );
+    const errorContent = ReactDOM.renderToString(jsx);
+
+    // Extract CSS and JS chunks
+    const chunks = extractChunks();
+
+    // Prepare data for Html component
+    const data = {
+      title: 'Internal Server Error',
+      description: err.message,
+      ...chunks,
+      app: {
+        apiUrl: process.env.RSK_API_CLIENT_URL || '',
+      },
+      children: errorContent,
+      lang: locale,
+    };
+
+    const html = ReactDOM.renderToStaticMarkup(<Html {...data} />);
 
     res.status(err.status || 500);
     res.send(`<!doctype html>${html}`);
@@ -398,8 +387,13 @@ app.use((err, req, res) => {
 // SERVER LAUNCH
 // =============================================================================
 
+// Development: Enable HMR and export app for dev server
+if (__DEV__ && module.hot) {
+  app.hot = module.hot;
+  module.hot.accept('./router');
+}
 // Production: Start server directly
-if (!module.hot) {
+else {
   apiModels
     .syncDatabase()
     .catch(err => {
@@ -421,10 +415,6 @@ if (!module.hot) {
         console.info(`🔧 API: ${apiUrl}`);
       });
     });
-} else {
-  // Development: Export app for dev server (tools/tasks/dev.js)
-  app.hot = module.hot;
-  module.hot.accept('./router');
 }
 
 export default app;

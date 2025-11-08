@@ -207,12 +207,12 @@ Generated during production build:
 ```
 build/
 ├── server.js            # Compiled server bundle
+├── loadable-stats.json  # @loadable/component chunk mapping for SSR
 ├── public/              # Static assets and client bundles
 │   ├── client.js        # Client application bundle
 │   ├── client.css       # Extracted CSS
 │   ├── *.chunk.js       # Code-split chunks
 │   └── ...              # Static files from public/
-└── chunk-manifest.json  # Chunk mapping for SSR
 ```
 
 ## 📝 Configuration Files

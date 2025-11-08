@@ -1,8 +1,6 @@
 /**
  * React Starter Kit (https://github.com/xuanhoa88/rapid-rsk/)
  *
- * Copyright © 2014-present. All rights reserved.
- *
  * This source code is licensed under the MIT license found in the
  * LICENSE.txt file in the root directory of this source tree.
  */
@@ -34,7 +32,6 @@ import {
   logVerbose,
   logWarn,
 } from '../lib/logger';
-import run from '../run';
 import { clientConfig, serverConfig } from '../webpack';
 import clean from './clean';
 import messages from './i18n';
@@ -311,36 +308,23 @@ function createBundle() {
 }
 
 /**
- * Execute a build step
+ * Execute a build step with timing and error handling
  */
 async function executeStep(step, index, total) {
   const start = performance.now();
 
   if (!isSilent()) {
-    logInfo(`🔄 [${index + 1}/${total}] ${step.description}...`);
+    logInfo(`[${index + 1}/${total}] ${step.description}...`);
   }
 
   try {
-    // Special handling for bundle and copy steps - call directly
-    if (step.name === 'bundle') {
-      await withBuildRetry(() => createBundle(), {
-        operation: 'webpack-bundle',
-        verbose: isVerbose(),
-      });
-    } else if (step.name === 'copy') {
-      await withBuildRetry(() => copyFiles(), {
-        operation: 'copy-files',
-        verbose: isVerbose(),
-      });
-    } else {
-      await run(step.task);
-    }
+    // Execute the step's task function
+    await step.task();
 
     const duration = performance.now() - start;
 
     if (isVerbose()) {
-      const emoji = duration > 10000 ? '🐌' : duration > 5000 ? '⚠️' : '✅';
-      logInfo(`   ${emoji} ${step.name} (${formatDuration(duration)})`);
+      logInfo(`   ${step.name} completed (${formatDuration(duration)})`);
     }
   } catch (error) {
     const duration = performance.now() - start;
@@ -372,16 +356,36 @@ export default async function main() {
       logInfo(`🛑 Build operation interrupted`);
     });
 
-    // Define build steps
+    // Define build steps with uniform task functions
     const buildSteps = [
-      { name: 'clean', task: clean, description: 'Cleaning build directory' },
+      {
+        name: 'clean',
+        task: clean,
+        description: 'Cleaning build directory',
+      },
       {
         name: 'messages',
         task: messages,
         description: 'Extracting i18n messages',
       },
-      { name: 'copy', task: null, description: 'Copying static files' },
-      { name: 'bundle', task: null, description: 'Creating webpack bundles' },
+      {
+        name: 'copy',
+        task: () =>
+          withBuildRetry(() => copyFiles(), {
+            operation: 'copy-files',
+            verbose: isVerbose(),
+          }),
+        description: 'Copying static files',
+      },
+      {
+        name: 'bundle',
+        task: () =>
+          withBuildRetry(() => createBundle(), {
+            operation: 'webpack-bundle',
+            verbose: isVerbose(),
+          }),
+        description: 'Creating webpack bundles',
+      },
     ];
 
     if (isVerbose()) {

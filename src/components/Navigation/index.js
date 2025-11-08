@@ -5,7 +5,6 @@
  * LICENSE.txt file in the root directory of this source tree.
  */
 import cx from 'classnames';
-import withStyles from 'isomorphic-style-loader/withStyles';
 import { useTranslation } from 'react-i18next';
 import Link from '../Link';
 import s from './Navigation.css';
@@ -26,10 +25,10 @@ function Navigation() {
       </Link>
       <span className={s.spacer}>{t('navigation.separator.or')}</span>
       <Link className={cx(s.link, s.highlight)} to='/register'>
-        {t('navigation.signup')}
+        {t('navigation.register')}
       </Link>
     </div>
   );
 }
 
-export default withStyles(s)(Navigation);
+export default Navigation;

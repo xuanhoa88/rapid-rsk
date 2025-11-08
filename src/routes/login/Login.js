@@ -5,7 +5,6 @@
  * LICENSE.txt file in the root directory of this source tree.
  */
 
-import withStyles from 'isomorphic-style-loader/withStyles';
 import PropTypes from 'prop-types';
 import { useState } from 'react';
 import s from './Login.css';
@@ -49,8 +48,6 @@ function Login({ title, fetch }) {
     <div className={s.root}>
       <div className={s.container}>
         <h1>{title}</h1>
-        <p className={s.lead}>Log in with your email address</p>
-
         {error && (
           <div className={s.error}>
             <strong>Error:</strong> {error}
@@ -114,4 +111,4 @@ Login.propTypes = {
   fetch: PropTypes.func.isRequired,
 };
 
-export default withStyles(s)(Login);
+export default Login;

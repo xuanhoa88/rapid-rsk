@@ -5,7 +5,6 @@
  * LICENSE.txt file in the root directory of this source tree.
  */
 
-import withStyles from 'isomorphic-style-loader/withStyles';
 import PropTypes from 'prop-types';
 import s from './Home.css';
 
@@ -44,7 +43,7 @@ function Home({ data }) {
   return (
     <div className={s.root}>
       <div className={s.container}>
-        <h1>RSK News</h1>
+        <h1>News</h1>
         {loading
           ? 'Loading...'
           : payload.map(item => (
@@ -80,4 +79,4 @@ Home.propTypes = {
   }).isRequired,
 };
 
-export default withStyles(s)(Home);
+export default Home;

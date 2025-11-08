@@ -59,7 +59,7 @@ const routes = {
     const route = await next();
 
     // Provide default values for title, description etc.
-    route.title = `${route.title || 'Untitled Page'} - React App`;
+    route.title = `${route.title || 'Untitled Page'} - RSK`;
     route.description = route.description || '';
 
     return route;

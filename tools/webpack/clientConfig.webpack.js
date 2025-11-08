@@ -1,8 +1,6 @@
 /**
  * React Starter Kit (https://github.com/xuanhoa88/rapid-rsk/)
  *
- * Copyright © 2014-present. All rights reserved.
- *
  * This source code is licensed under the MIT license found in the
  * LICENSE.txt file in the root directory of this source tree.
  */
@@ -10,9 +8,12 @@
 import path from 'path';
 import webpack from 'webpack';
 import { BundleAnalyzerPlugin } from 'webpack-bundle-analyzer';
+import LoadablePlugin from '@loadable/webpack-plugin';
+import MiniCssExtractPlugin from 'mini-css-extract-plugin';
 import { merge } from 'webpack-merge';
 import config from '../config';
 import baseConfig, {
+  createCSSRule,
   isAnalyze,
   isDebug,
   isProfile,
@@ -31,6 +32,17 @@ export default merge(baseConfig, {
     client: [path.join(config.APP_DIR, 'client.js')],
   },
 
+  module: {
+    rules: [
+      // CSS handling for client bundle (extracts CSS to separate files)
+      createCSSRule({
+        isClient: true,
+        isDebug,
+        extractLoader: MiniCssExtractPlugin.loader,
+      }),
+    ],
+  },
+
   plugins: [
     // Define free variables
     // https://webpack.js.org/plugins/define-plugin/
@@ -39,54 +51,22 @@ export default merge(baseConfig, {
       __DEV__: isDebug,
     }),
 
-    // Generate chunk-manifest.json for SSR
-    // Simple webpack plugin to map chunk names to their output files
-    {
-      apply: compiler => {
-        compiler.hooks.emit.tapAsync(
-          'ChunkManifestPlugin',
-          (compilation, callback) => {
-            try {
-              const publicPath =
-                compilation.outputOptions.publicPath || '/assets/';
-              const chunkFiles = Object.create(null);
+    // Loadable Components Plugin - generates loadable-stats.json for SSR
+    // https://loadable-components.com/docs/api-loadable-server/
+    // Write to root of BUILD_DIR so server can find it
+    new LoadablePlugin({
+      filename: path.resolve(config.BUILD_DIR, 'loadable-stats.json'),
+      writeToDisk: true, // Write to disk even in dev mode
+    }),
 
-              // Build chunk manifest
-              compilation.chunkGroups.forEach(chunkGroup => {
-                if (!chunkFiles[chunkGroup.name]) {
-                  chunkFiles[chunkGroup.name] = [];
-                }
-
-                chunkGroup.chunks.forEach(chunk => {
-                  chunk.files.forEach(file => {
-                    // Skip source maps
-                    if (file.endsWith('.map')) return;
-
-                    const fullPath = publicPath + file;
-
-                    // Avoid duplicates
-                    if (!chunkFiles[chunkGroup.name].includes(fullPath)) {
-                      chunkFiles[chunkGroup.name].push(fullPath);
-                    }
-                  });
-                });
-              });
-
-              // Add to webpack assets
-              const manifestContent = JSON.stringify(chunkFiles, null, 2);
-              compilation.assets['chunk-manifest.json'] = {
-                source: () => manifestContent,
-                size: () => manifestContent.length,
-              };
-
-              callback();
-            } catch (error) {
-              callback(error);
-            }
-          },
-        );
-      },
-    },
+    // Mini CSS Extract Plugin - extracts CSS into separate files
+    // https://webpack.js.org/plugins/mini-css-extract-plugin/
+    new MiniCssExtractPlugin({
+      filename: isDebug ? '[name].css' : '[name].[contenthash:8].css',
+      chunkFilename: isDebug ? '[id].css' : '[id].[contenthash:8].css',
+      // Ignore order warnings in development (CSS Modules handle scoping)
+      ignoreOrder: isDebug,
+    }),
 
     // Webpack Bundle Analyzer (production only)
     // https://github.com/webpack-contrib/webpack-bundle-analyzer

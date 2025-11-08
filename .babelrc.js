@@ -7,16 +7,22 @@
 
 // Babel configuration
 // https://babeljs.io/docs/usage/api/
+// https://babeljs.io/docs/config-files#apicache
 
-// Environment detection
-const isProduction = process.env.NODE_ENV === 'production';
-const isDevelopment = process.env.NODE_ENV === 'development';
-const isTest = process.env.NODE_ENV === 'test';
+module.exports = api => {
+  // Cache based on NODE_ENV for better performance
+  api.cache.using(() => process.env.NODE_ENV);
 
-// Detect if we're in a webpack build (BABEL_ENV is set by webpack config)
-const isWebpack = process.env.BABEL_ENV === 'webpack';
+  // Environment detection
+  const isProduction = api.env('production');
+  const isDevelopment = api.env('development');
+  const isTest = api.env('test');
 
-module.exports = {
+  // Detect if we're in a webpack/browser build context
+  // webpack-loader sets caller.name to 'babel-loader'
+  const isWebpack = api.caller(caller => caller && caller.name === 'babel-loader');
+
+  return {
   presets: [
     [
       '@babel/preset-env',
@@ -46,6 +52,9 @@ module.exports = {
   plugins: [
     // React Fast Refresh (development only, and only for webpack/browser builds)
     ...(isDevelopment && isWebpack ? ['react-refresh/babel'] : []),
+
+    // Loadable Components (for code splitting with SSR)
+    '@loadable/babel-plugin',
 
     // Class properties (for React class components and modern JS)
     ['@babel/plugin-transform-class-properties', { loose: true }],
@@ -80,4 +89,5 @@ module.exports = {
         ]
       : []),
   ],
+  };
 };

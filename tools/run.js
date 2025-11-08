@@ -1,8 +1,6 @@
 /**
  * React Starter Kit (https://github.com/xuanhoa88/rapid-rsk/)
  *
- * Copyright © 2014-present. All rights reserved.
- *
  * This source code is licensed under the MIT license found in the
  * LICENSE.txt file in the root directory of this source tree.
  */
@@ -131,7 +129,7 @@ function showHelp() {
  */
 function executeTask(taskName) {
   return new Promise((resolve, reject) => {
-    const toolsDir = config.resolvePath('tools', 'tasks');
+    const toolsDir = path.resolve(__dirname, 'tasks');
     const taskPath = path.join(toolsDir, `${taskName}.js`);
 
     logDebug(`Spawning task: ${taskName}`);

@@ -5,6 +5,7 @@
  * LICENSE.txt file in the root directory of this source tree.
  */
 
+import { loadableReady } from '@loadable/component';
 import queryString from 'query-string';
 import { createRoot, hydrateRoot } from 'react-dom/client';
 import 'whatwg-fetch';
@@ -136,13 +137,6 @@ const store = configureStore(window.__APP_STATE__.state, {
   fetch,
   navigator,
 });
-
-// Enables critical path CSS rendering
-const insertCss = (...styles) => {
-  // eslint-disable-next-line no-underscore-dangle
-  const removeCss = styles.map(x => x._insertCss());
-  return () => removeCss.forEach(dispose => dispose());
-};
 
 // Global (context) variables that can be easily accessed from any React component
 // https://facebook.github.io/react/docs/context.html
@@ -276,11 +270,7 @@ async function onLocationChange(location, action) {
     }
 
     // Create app element
-    const appElement = (
-      <App context={context} insertCss={insertCss}>
-        {route.component}
-      </App>
-    );
+    const appElement = <App context={context}>{route.component}</App>;
 
     // React 18: Use hydrateRoot for initial render, createRoot for subsequent renders
     if (isInitialRender) {
@@ -366,10 +356,11 @@ function cleanup() {
 }
 
 /**
- * Main entry point for the client-side application
+ * Initialize the client-side application
+ * Sets up navigation, event listeners, and triggers initial render
  */
 let isHistoryObserved = false;
-export default function main() {
+function initializeApp() {
   // Handle client-side navigation by using HTML5 History API
   // For more information visit https://github.com/mjackson/history#readme
   currentLocation = navigator.getCurrentLocation();
@@ -398,25 +389,50 @@ export default function main() {
   onLocationChange(currentLocation);
 }
 
-// globally accesible entry point
-window.RSK_ENTRY = main;
+// =============================================================================
+// APPLICATION STARTUP
+// =============================================================================
 
-// Enable Hot Module Replacement (HMR)
-// React Refresh handles component updates automatically
-if (module.hot) {
-  module.hot.accept('./router', () => {
-    // Only trigger route change - React Refresh handles component updates
-    onLocationChange(currentLocation);
+// Application startup requires both conditions to be met:
+// 1. DOM is ready (document parsed, container element exists)
+// 2. Code-split chunks are loaded (@loadable/component)
+const READY_STATES = new Set(['interactive', 'complete']);
+let isDOMReady = READY_STATES.has(document.readyState) && !!document.body;
+let areChunksLoaded = false;
+
+/**
+ * Attempt to start the application if both conditions are met
+ * Only proceeds when both DOM and chunks are ready
+ */
+function attemptStartup() {
+  if (isDOMReady && areChunksLoaded) {
+    initializeApp();
+  }
+}
+
+// Wait for @loadable chunks to be loaded
+loadableReady(() => {
+  areChunksLoaded = true;
+  attemptStartup();
+});
+
+// Wait for DOM to be ready
+if (isDOMReady) {
+  // DOM already ready, check if chunks are loaded
+  attemptStartup();
+} else {
+  // Wait for DOM to be ready
+  document.addEventListener('DOMContentLoaded', () => {
+    isDOMReady = true;
+    attemptStartup();
   });
 }
 
-// Initialize the application when DOM is ready
-const readyStates = new Set(['interactive', 'complete']);
-
-if (readyStates.has(document.readyState) && document.body) {
-  // DOM is already ready, start immediately
-  main();
-} else {
-  // Wait for DOM to be ready
-  document.addEventListener('DOMContentLoaded', main);
+// Hot Module Replacement (HMR) for router changes
+// React Refresh handles component updates automatically
+if (__DEV__ && module.hot) {
+  module.hot.accept('./router', () => {
+    // Re-render current route when router configuration changes
+    onLocationChange(currentLocation);
+  });
 }

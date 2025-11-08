@@ -1,18 +1,137 @@
 /**
  * React Starter Kit (https://github.com/xuanhoa88/rapid-rsk/)
  *
- * Copyright © 2014-present. All rights reserved.
- *
  * This source code is licensed under the MIT license found in the
  * LICENSE.txt file in the root directory of this source tree.
  */
 
+import path from 'path';
 import config from '../config';
 import { getVerboseConfig } from '../lib/logger';
 
 /** Get file naming pattern based on environment */
 const getFileNamePattern = (isDebug, hashType = 'hash') =>
   isDebug ? '[path][name].[ext]' : `[${hashType}:8].[ext]`;
+
+/**
+ * Create CSS loader configuration for webpack
+ * Supports CSS, SCSS, SASS, and LESS with CSS Modules
+ *
+ * @param {Object} options - Configuration options
+ * @param {boolean} options.isClient - True for client bundle, false for server
+ * @param {boolean} options.isDebug - Development mode flag
+ * @param {any} options.extractLoader - MiniCssExtractPlugin.loader for client (optional)
+ * @returns {Object} Webpack rule configuration
+ */
+export const createCSSRule = ({ isClient, isDebug, extractLoader }) => {
+  // Common CSS loader options
+  const cssLoaderOptions = {
+    // Number of loaders applied before css-loader (for @import resolution)
+    // Current: 1 (postcss-loader only)
+    // With SCSS/SASS: 2 (postcss-loader + sass-loader)
+    // With LESS: 2 (postcss-loader + less-loader)
+    importLoaders: 1,
+    sourceMap: isClient && isDebug, // Source maps only for client in dev mode
+    esModule: false, // Required for compatibility
+    modules: {
+      // Enable CSS Modules only for files in src/ directory
+      auto: resourcePath => resourcePath.includes(config.APP_DIR),
+      // Server: only export class names, Client: full CSS
+      exportOnlyLocals: !isClient,
+      localIdentName: isDebug
+        ? '[name]-[local]-[hash:base64:5]'
+        : '[hash:base64:5]',
+    },
+  };
+
+  // PostCSS loader options
+  const postcssLoaderOptions = {
+    sourceMap: isClient && isDebug,
+    postcssOptions: {
+      config: path.resolve(__dirname, '...', 'postcss.config.js'),
+      // SugarSS parser (for .sss files)
+      // Automatically uses sugarss parser when file extension is .sss
+      // Install: npm install -D sugarss
+      parser: file => {
+        if (file && file.endsWith('.sss')) {
+          return require('sugarss');
+        }
+        return undefined; // Use default parser for other files
+      },
+    },
+  };
+
+  // SCSS/SASS loader options (uncomment when sass-loader is installed)
+  const sassLoaderOptions = {
+    sourceMap: isClient && isDebug,
+  };
+
+  // LESS loader options (uncomment when less-loader is installed)
+  const lessLoaderOptions = {
+    sourceMap: isClient && isDebug,
+  };
+
+  // Stylus loader options (uncomment when stylus-loader is installed)
+  const stylusLoaderOptions = {
+    sourceMap: isClient && isDebug,
+  };
+
+  return {
+    test: reStyle,
+    rules: [
+      // First rule: Extract CSS (client) or just get class names (server)
+      {
+        issuer: { not: [reStyle] },
+        ...(isClient
+          ? { use: extractLoader } // Client: extract CSS to files
+          : { loader: 'css-loader', options: cssLoaderOptions }), // Server: class names only
+      },
+      // Process CSS with css-loader (only for client, server uses above)
+      ...(isClient
+        ? [
+            {
+              loader: 'css-loader',
+              options: cssLoaderOptions,
+            },
+          ]
+        : []),
+      // PostCSS loader (autoprefixer, etc.)
+      {
+        loader: 'postcss-loader',
+        options: postcssLoaderOptions,
+      },
+
+      // Preprocessor loaders (conditional on file extension)
+      // Install the packages you need:
+      // - SCSS/SASS: npm install -D sass sass-loader
+      // - LESS: npm install -D less less-loader
+      // - Stylus: npm install -D stylus stylus-loader
+      // - SugarSS: npm install -D sugarss (handled by PostCSS parser above, no loader needed)
+      // Note: Update importLoaders count above when enabling preprocessors
+
+      // SCSS/SASS loader
+      {
+        test: /\.s[ac]ss$/i,
+        loader: 'sass-loader',
+        options: sassLoaderOptions,
+      },
+
+      // LESS loader
+      {
+        test: /\.less$/i,
+        loader: 'less-loader',
+        options: lessLoaderOptions,
+      },
+
+      // Stylus loader
+      {
+        test: /\.styl$/i,
+        loader: 'stylus-loader',
+        options: stylusLoaderOptions,
+      },
+    ],
+  };
+};
 
 // =============================================================================
 // ENVIRONMENT & MODE CONFIGURATION
@@ -32,14 +151,25 @@ export const isProfile =
   process.argv.includes('--profile') || config.bundleProfile;
 
 // =============================================================================
-// REGEX PATTERNS
+// REGEX PATTERNS FOR FILE MATCHING
 // =============================================================================
 
-export const reScript = /\.(js|jsx|mjs)$/i;
-export const reStyle = /\.(css|less|styl|scss|sass|sss)$/i;
+// JavaScript files (including ES modules and CommonJS)
+export const reScript = /\.(js|jsx|[cm]js)$/i;
+
+// Stylesheet files (CSS, SCSS, SASS, LESS, Stylus, SugarSS)
+export const reStyle = /\.(css|s[ac]ss|less|styl|sss)$/i;
+
+// Image files (with optional version query string)
 export const reImage = /\.(?:ico|gif|png|jpg|jpeg|webp)(\?v=\d+\.\d+\.\d+)?$/i;
-export const reFont = /\.(woff|woff2|eot|ttf|otf)(\?v=\d+\.\d+\.\d+)?$/i;
+
+// Font files (with optional version query string)
+export const reFont = /\.(woff2?|eot|ttf|otf)(\?v=\d+\.\d+\.\d+)?$/i;
+
+// SVG files (handled separately for React component conversion)
 export const reSvg = /\.svg$/i;
+
+// Markup and document files
 export const reHtml = /\.html$/i;
 export const reMarkdown = /\.(md|markdown)$/i;
 export const reText = /\.txt$/i;
@@ -88,7 +218,7 @@ export default {
       // Rules for JS / JSX
       {
         test: reScript,
-        include: [config.APP_DIR, config.resolvePath('tools')],
+        include: [config.APP_DIR, __dirname],
         use: [
           {
             loader: 'babel-loader',
@@ -103,56 +233,17 @@ export default {
               // - Automatic polyfills via useBuiltIns: 'usage' with core-js 3
               // - React Fast Refresh in development
               // - All necessary plugins for modern React development
+              // Note: .babelrc.js uses api.caller() to detect webpack context automatically
               babelrc: true,
               configFile: true,
-
-              // Set BABEL_ENV to 'webpack' so .babelrc.js uses browser targets
-              envName: 'webpack',
             },
           },
         ],
       },
 
       // Rules for Style Sheets
-      {
-        test: reStyle,
-        rules: [
-          // Convert CSS into JS module for SSR
-          {
-            issuer: { not: [reStyle] },
-            use: 'isomorphic-style-loader',
-          },
-
-          // Process CSS with css-loader
-          {
-            loader: 'css-loader',
-            options: {
-              importLoaders: 1, // Apply postcss-loader to @import statements
-              sourceMap: config.bundleSourceMaps,
-              esModule: false, // Required for isomorphic-style-loader compatibility
-              modules: {
-                // Enable CSS Modules only for files in src/ directory
-                // Third-party styles (node_modules) remain global
-                auto: resourcePath => resourcePath.includes(config.APP_DIR),
-                localIdentName: isDebug
-                  ? '[name]-[local]-[hash:base64:5]'
-                  : '[hash:base64:5]',
-              },
-            },
-          },
-
-          // Apply PostCSS plugins (autoprefixer, etc.)
-          {
-            loader: 'postcss-loader',
-            options: {
-              sourceMap: config.bundleSourceMaps,
-              postcssOptions: {
-                config: config.resolvePath('tools', 'postcss.config.js'),
-              },
-            },
-          },
-        ],
-      },
+      // NOTE: CSS handling is configured in client/server configs using cssConfig.webpack.js
+      // This allows different handling for client (extract CSS) vs server (class names only)
 
       // Rules for images (using webpack 5 Asset Modules)
       {

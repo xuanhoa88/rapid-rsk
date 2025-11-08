@@ -23,11 +23,11 @@ export default {
   path: '/my-route',
   title: 'My Route Title',
   description: 'SEO description for this route',
-  
+
   async action({ fetch, params, query }) {
     // Fetch data if needed
     const data = await fetch('/api/my-data');
-    
+
     return {
       title: 'My Route Title',
       description: 'SEO description',
@@ -51,12 +51,12 @@ import s from './MyRoute.css';
 
 function MyRoute({ data }) {
   const { insertCss } = useAppContext();
-  
+
   useEffect(() => {
     const removeCss = insertCss(s);
     return () => removeCss();
   }, [insertCss]);
-  
+
   return (
     <div className={s.container}>
       <h1 className={s.title}>My Route</h1>
@@ -69,10 +69,6 @@ MyRoute.propTypes = {
   data: PropTypes.shape({
     message: PropTypes.string,
   }),
-};
-
-MyRoute.defaultProps = {
-  data: null,
 };
 
 export default MyRoute;
@@ -115,7 +111,7 @@ const routes = {
 Update `src/components/Navigation/Navigation.js`:
 
 ```javascript
-<Link className={s.link} to="/my-route">
+<Link className={s.link} to='/my-route'>
   My Route
 </Link>
 ```
@@ -134,10 +130,10 @@ npm start
 ```javascript
 export default {
   path: '/users/:id',
-  
+
   async action({ fetch, params }) {
     const user = await fetch(`/api/users/${params.id}`);
-    
+
     return {
       title: `User: ${user.name}`,
       component: <UserProfile user={user} />,
@@ -153,16 +149,16 @@ import { useSelector } from 'react-redux';
 
 export default {
   path: '/dashboard',
-  
+
   async action({ fetch, store }) {
     const { user } = store.getState();
-    
+
     if (!user) {
       return { redirect: '/login' };
     }
-    
+
     const data = await fetch('/api/dashboard');
-    
+
     return {
       title: 'Dashboard',
       component: <Dashboard data={data} />,
@@ -176,10 +172,10 @@ export default {
 ```javascript
 export default {
   path: '/heavy-page',
-  
+
   async action() {
     const HeavyPage = await import('./HeavyPage');
-    
+
     return {
       title: 'Heavy Page',
       component: <HeavyPage.default />,
@@ -206,6 +202,7 @@ describe('MyRoute', () => {
 ```
 
 Run tests:
+
 ```bash
 npm test
 ```

@@ -13,7 +13,17 @@ export default new UniversalRouter(routes, {
     if (typeof context.route.load === 'function') {
       return context.route
         .load()
-        .then(action => action.default(context, params));
+        .then(action => {
+          if (!action || typeof action.default !== 'function') {
+            console.error('Route load failed:', context.route.path, action);
+            return undefined;
+          }
+          return action.default(context, params);
+        })
+        .catch(error => {
+          console.error('Route load error:', context.route.path, error);
+          return undefined;
+        });
     }
     if (typeof context.route.action === 'function') {
       return context.route.action(context, params);

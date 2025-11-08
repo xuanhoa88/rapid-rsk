@@ -5,12 +5,11 @@
  * LICENSE.txt file in the root directory of this source tree.
  */
 
-import withStyles from 'isomorphic-style-loader/withStyles';
-import normalizeCss from 'normalize.css';
+import 'normalize.css';
 import Feedback from '../Feedback';
 import Footer from '../Footer';
 import Header from '../Header';
-import s from './Layout.css';
+import './Layout.css';
 
 // eslint-disable-next-line react/prop-types
 function Layout({ children }) {
@@ -24,4 +23,4 @@ function Layout({ children }) {
   );
 }
 
-export default withStyles(normalizeCss, s)(Layout);
+export default Layout;

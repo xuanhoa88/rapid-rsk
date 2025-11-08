@@ -34,7 +34,7 @@ router.get('/', (req, res) => {
       {
         id: 3,
         title: 'React Starter Kit',
-        link: 'https://github.com/kriasoft/react-starter-kit',
+        link: 'https://github.com/xuanhoa88/rapid-rsk',
         contentSnippet:
           'React Starter Kit — isomorphic web app boilerplate (Node.js, Express, GraphQL, React.js, Babel, PostCSS, Webpack, Browsersync)',
       },

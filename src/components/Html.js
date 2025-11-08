@@ -15,6 +15,7 @@ function Html({
   url = null,
   type = 'website',
   styles = [],
+  styleLinks = [],
   scripts = [],
   app,
   children,
@@ -37,11 +38,21 @@ function Html({
 
         {/* Canonical URL for SEO */}
         {url && <link rel='canonical' href={url} />}
+
+        {/* CSS files from @loadable/component (code-split CSS) */}
+        {styleLinks.map(href => (
+          <link key={href} rel='stylesheet' href={href} />
+        ))}
+
+        {/* Preload JS scripts */}
         {scripts.map(script => (
           <link key={script} rel='preload' href={script} as='script' />
         ))}
+
         <link rel='manifest' href='/site.webmanifest' />
         <link rel='apple-touch-icon' href='/icon.png' />
+
+        {/* Critical inline CSS from @loadable/component */}
         {styles.map(style => (
           <style
             key={style.id}
@@ -77,6 +88,7 @@ Html.propTypes = {
       cssText: PropTypes.string.isRequired,
     }).isRequired,
   ),
+  styleLinks: PropTypes.arrayOf(PropTypes.string.isRequired),
   scripts: PropTypes.arrayOf(PropTypes.string.isRequired),
   app: PropTypes.object.isRequired,
   children: PropTypes.string.isRequired,

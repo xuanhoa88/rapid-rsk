@@ -12,10 +12,10 @@
   "navigation": {
     "about": "About",
     "contact": "Contact",
-    "login": "Log in",
+    "login": "Login",
     "separator": {
       "or": "or"
     },
-    "signup": "Sign up"
+    "register": "Register"
   }
 }

@@ -1,8 +1,6 @@
 /**
  * React Starter Kit (https://github.com/xuanhoa88/rapid-rsk/)
  *
- * Copyright © 2014-present. All rights reserved.
- *
  * This source code is licensed under the MIT license found in the
  * LICENSE.txt file in the root directory of this source tree.
  */
@@ -11,20 +9,20 @@
 // Log Level Management
 // ============================================================================
 
-const LOG_LEVELS = {
+const LOG_LEVELS = Object.freeze({
   silent: 0,
   error: 1,
   warn: 2,
   info: 3,
   verbose: 4,
   debug: 5,
-};
+});
 
 /**
- * Get the current logging level
+ * Determine the logging level at startup
  * Priority: CLI flags > Environment variables > Default (info)
  */
-export function getLogLevel() {
+function determineLogLevel() {
   // Check CLI flags first
   if (process.argv.includes('--silent')) return 'silent';
   if (process.argv.includes('--verbose')) return 'verbose';
@@ -43,12 +41,21 @@ export function getLogLevel() {
   return 'info';
 }
 
+// Cache the log level at startup (it doesn't change during execution)
+export const CURRENT_LOG_LEVEL = determineLogLevel();
+
+/**
+ * Get the current logging level
+ */
+export function getLogLevel() {
+  return CURRENT_LOG_LEVEL;
+}
+
 /**
  * Check if a log level should be shown
  */
 function shouldLog(level) {
-  const currentLevel = getLogLevel();
-  return LOG_LEVELS[level] <= LOG_LEVELS[currentLevel];
+  return LOG_LEVELS[level] <= LOG_LEVELS[CURRENT_LOG_LEVEL];
 }
 
 // ============================================================================
@@ -56,16 +63,15 @@ function shouldLog(level) {
 // ============================================================================
 
 export function isSilent() {
-  return getLogLevel() === 'silent';
+  return CURRENT_LOG_LEVEL === 'silent';
 }
 
 export function isVerbose() {
-  const level = getLogLevel();
-  return level === 'verbose' || level === 'debug';
+  return CURRENT_LOG_LEVEL === 'verbose' || CURRENT_LOG_LEVEL === 'debug';
 }
 
 export function isDebug() {
-  return getLogLevel() === 'debug';
+  return CURRENT_LOG_LEVEL === 'debug';
 }
 
 /**
@@ -101,7 +107,7 @@ export function getVerboseConfig() {
  */
 export function logError(message, ...args) {
   if (shouldLog('error')) {
-    console.error(`❌ ${message}`, ...args);
+    console.error(message, ...args);
   }
 }
 
@@ -110,7 +116,7 @@ export function logError(message, ...args) {
  */
 export function logWarn(message, ...args) {
   if (shouldLog('warn')) {
-    console.warn(`⚠️  ${message}`, ...args);
+    console.warn(message, ...args);
   }
 }
 
@@ -119,7 +125,7 @@ export function logWarn(message, ...args) {
  */
 export function logInfo(message, ...args) {
   if (shouldLog('info')) {
-    console.info(`ℹ️  ${message}`, ...args);
+    console.info(message, ...args);
   }
 }
 
@@ -128,7 +134,7 @@ export function logInfo(message, ...args) {
  */
 export function logVerbose(message, ...args) {
   if (shouldLog('verbose')) {
-    console.info(`📝 ${message}`, ...args);
+    console.info(message, ...args);
   }
 }
 
@@ -137,7 +143,7 @@ export function logVerbose(message, ...args) {
  */
 export function logDebug(message, ...args) {
   if (shouldLog('debug')) {
-    console.info(`🔍 ${message}`, ...args);
+    console.info(message, ...args);
   }
 }
 

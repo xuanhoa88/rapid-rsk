@@ -1,4 +1,3 @@
-import withStyles from 'isomorphic-style-loader/withStyles';
 import { useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { setLocale } from '../../actions/intl';
@@ -64,4 +63,4 @@ LanguageSwitcher.propTypes = {
   // Note: Props are now obtained via hooks, but we keep PropTypes for documentation
 };
 
-export default withStyles(s)(LanguageSwitcher);
+export default LanguageSwitcher;

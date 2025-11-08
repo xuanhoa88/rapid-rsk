@@ -6,39 +6,94 @@
  */
 
 .root {
-  float: right;
-  margin: 6px 0 0;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  flex-wrap: wrap;
+  justify-content: center;
 }
 
 .link {
-  display: inline-block;
-  padding: 3px 8px;
-  font-size: 1.125em; /* ~18px */
+  display: inline-flex;
+  align-items: center;
+  padding: var(--spacing-2) var(--spacing-3);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
   text-decoration: none;
-}
-
-.link,
-.link:active,
-.link:visited {
-  color: rgba(255, 255, 255, 0.6);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+  white-space: nowrap;
 }
 
 .link:hover {
-  color: rgba(255, 255, 255, 1);
+  color: var(--color-text-primary);
+  background-color: var(--color-background-tertiary);
+  text-decoration: none;
+}
+
+.link:active {
+  transform: scale(0.98);
+}
+
+.link:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 .highlight {
-  margin-right: 8px;
-  margin-left: 8px;
-  border-radius: 3px;
-  background: rgba(0, 0, 0, 0.15);
-  color: #fff;
+  background-color: var(--color-primary);
+  color: white !important;
+  font-weight: var(--font-weight-semibold);
+  box-shadow: var(--shadow-sm);
 }
 
 .highlight:hover {
-  background: rgba(0, 0, 0, 0.3);
+  background-color: var(--color-primary-hover);
+  color: white !important;
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
 }
 
 .spacer {
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--color-text-tertiary);
+  margin: 0 var(--spacing-1);
+  font-size: var(--font-size-sm);
+  user-select: none;
+}
+
+/* Tablet */
+@media (max-width: 992px) {
+  .root {
+    gap: var(--spacing-1);
+  }
+
+  .link {
+    padding: var(--spacing-2) var(--spacing-2);
+    font-size: var(--font-size-xs);
+  }
+
+  .spacer {
+    margin: 0;
+    font-size: var(--font-size-xs);
+  }
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .root {
+    justify-content: center;
+    gap: var(--spacing-2);
+    width: 100%;
+  }
+
+  .link {
+    padding: var(--spacing-2) var(--spacing-3);
+    font-size: var(--font-size-sm);
+    flex: 0 0 auto;
+  }
+
+  .spacer {
+    display: none;
+  }
 }
