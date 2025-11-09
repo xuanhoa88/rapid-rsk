@@ -8,6 +8,82 @@
 import PropTypes from 'prop-types';
 import serialize from 'serialize-javascript';
 
+/**
+ * Renders Open Graph meta tags for social media sharing
+ */
+function OpenGraphMeta({ title, description, type, url, image }) {
+  return (
+    <>
+      <meta property='og:title' content={title} />
+      <meta property='og:description' content={description} />
+      <meta property='og:type' content={type} />
+      {url && <meta property='og:url' content={url} />}
+      {image && <meta property='og:image' content={image} />}
+    </>
+  );
+}
+
+OpenGraphMeta.propTypes = {
+  title: PropTypes.string.isRequired,
+  description: PropTypes.string.isRequired,
+  type: PropTypes.string.isRequired,
+  url: PropTypes.string,
+  image: PropTypes.string,
+};
+
+/**
+ * Renders loadable component state scripts
+ * Required for @loadable/component SSR hydration
+ */
+function LoadableStateScripts({ loadableState }) {
+  if (!loadableState) return null;
+
+  const { requiredChunks, namedChunks } = loadableState;
+
+  return (
+    <>
+      {requiredChunks && (
+        <script
+          id='__LOADABLE_REQUIRED_CHUNKS__'
+          type='application/json'
+          dangerouslySetInnerHTML={{ __html: requiredChunks }}
+        />
+      )}
+      {namedChunks && (
+        <script
+          id='__LOADABLE_REQUIRED_CHUNKS___ext'
+          type='application/json'
+          dangerouslySetInnerHTML={{ __html: namedChunks }}
+        />
+      )}
+    </>
+  );
+}
+
+LoadableStateScripts.propTypes = {
+  loadableState: PropTypes.shape({
+    requiredChunks: PropTypes.string,
+    namedChunks: PropTypes.string,
+  }),
+};
+
+/**
+ * HTML document template component
+ * Renders the complete HTML structure for server-side rendering
+ *
+ * @param {Object} props - Component props
+ * @param {string} props.title - Page title
+ * @param {string} props.description - Page description
+ * @param {string} [props.image] - Open Graph image URL
+ * @param {string} [props.url] - Canonical URL
+ * @param {string} [props.type='website'] - Open Graph type
+ * @param {Array} [props.styles=[]] - Inline CSS styles from @loadable/component
+ * @param {Array} [props.styleLinks=[]] - CSS file URLs
+ * @param {Array} [props.scripts=[]] - JavaScript file URLs
+ * @param {Object} [props.loadableState] - Loadable component state for SSR
+ * @param {Object} props.appState - Application state and configuration (apiUrl, state, lang)
+ * @param {string} props.children - Rendered React app HTML
+ */
 function Html({
   title,
   description,
@@ -17,59 +93,74 @@ function Html({
   styles = [],
   styleLinks = [],
   scripts = [],
-  app,
+  loadableState = null,
+  appState,
   children,
 }) {
   return (
-    <html className='no-js' lang={app.lang}>
+    <html className='no-js' lang={appState.lang}>
       <head>
+        {/* Basic meta tags */}
         <meta charSet='utf-8' />
         <meta httpEquiv='x-ua-compatible' content='ie=edge' />
-        <title>{title}</title>
-        <meta name='description' content={description} />
         <meta name='viewport' content='width=device-width, initial-scale=1' />
 
-        {/* Open Graph meta tags for social media sharing */}
-        <meta property='og:title' content={title} />
-        <meta property='og:description' content={description} />
-        <meta property='og:type' content={type} />
-        {url && <meta property='og:url' content={url} />}
-        {image && <meta property='og:image' content={image} />}
+        {/* Page metadata */}
+        <title>{title}</title>
+        <meta name='description' content={description} />
+
+        {/* Open Graph meta tags for social media */}
+        <OpenGraphMeta
+          title={title}
+          description={description}
+          type={type}
+          url={url}
+          image={image}
+        />
 
         {/* Canonical URL for SEO */}
         {url && <link rel='canonical' href={url} />}
 
-        {/* CSS files from @loadable/component (code-split CSS) */}
+        {/* Stylesheets from @loadable/component */}
         {styleLinks.map(href => (
           <link key={href} rel='stylesheet' href={href} />
         ))}
 
-        {/* Preload JS scripts */}
-        {scripts.map(script => (
-          <link key={script} rel='preload' href={script} as='script' />
+        {/* Preload JavaScript bundles */}
+        {scripts.map(src => (
+          <link key={src} rel='preload' href={src} as='script' />
         ))}
 
+        {/* PWA manifest and icons */}
         <link rel='manifest' href='/site.webmanifest' />
         <link rel='apple-touch-icon' href='/icon.png' />
 
         {/* Critical inline CSS from @loadable/component */}
-        {styles.map(style => (
+        {styles.map(({ id, cssText }) => (
           <style
-            key={style.id}
-            id={style.id}
-            dangerouslySetInnerHTML={{ __html: style.cssText }}
+            key={id}
+            id={id}
+            dangerouslySetInnerHTML={{ __html: cssText }}
           />
         ))}
       </head>
       <body>
+        {/* React app root */}
         <div id='app' dangerouslySetInnerHTML={{ __html: children }} />
+
+        {/* Loadable component state (must come before app state) */}
+        <LoadableStateScripts loadableState={loadableState} />
+
+        {/* Application state */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `window.__APP_STATE__=${serialize(app)}`,
+            __html: `window.__APP_STATE__=${serialize(appState)}`,
           }}
         />
-        {scripts.map(script => (
-          <script key={script} src={script} />
+
+        {/* JavaScript bundles */}
+        {scripts.map(src => (
+          <script key={src} src={src} />
         ))}
       </body>
     </html>
@@ -86,11 +177,19 @@ Html.propTypes = {
     PropTypes.shape({
       id: PropTypes.string.isRequired,
       cssText: PropTypes.string.isRequired,
-    }).isRequired,
+    }),
   ),
-  styleLinks: PropTypes.arrayOf(PropTypes.string.isRequired),
-  scripts: PropTypes.arrayOf(PropTypes.string.isRequired),
-  app: PropTypes.object.isRequired,
+  styleLinks: PropTypes.arrayOf(PropTypes.string),
+  scripts: PropTypes.arrayOf(PropTypes.string),
+  loadableState: PropTypes.shape({
+    requiredChunks: PropTypes.string,
+    namedChunks: PropTypes.string,
+  }),
+  appState: PropTypes.shape({
+    apiUrl: PropTypes.string.isRequired,
+    state: PropTypes.object.isRequired,
+    lang: PropTypes.string.isRequired,
+  }).isRequired,
   children: PropTypes.string.isRequired,
 };
 

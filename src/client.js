@@ -13,7 +13,7 @@ import App from './components/App';
 import { createFetch } from './createFetch';
 import i18n from './i18n';
 import * as navigator from './navigator';
-import router from './router';
+import router from './routes';
 import configureStore from './store/configureStore';
 
 // -------------------------------------------------------------------------
@@ -431,7 +431,7 @@ if (isDOMReady) {
 // Hot Module Replacement (HMR) for router changes
 // React Refresh handles component updates automatically
 if (__DEV__ && module.hot) {
-  module.hot.accept('./router', () => {
+  module.hot.accept('./routes', () => {
     // Re-render current route when router configuration changes
     onLocationChange(currentLocation);
   });

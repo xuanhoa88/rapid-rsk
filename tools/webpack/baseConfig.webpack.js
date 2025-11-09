@@ -340,10 +340,17 @@ export default {
         },
       },
 
-      // Rules for Markdown files (return source as string)
+      // Rules for Markdown files (parse frontmatter and convert to HTML)
       {
         test: reMarkdown,
-        type: 'asset/source',
+        use: [
+          {
+            loader: 'frontmatter-markdown-loader',
+            options: {
+              mode: ['html'],
+            },
+          },
+        ],
       },
 
       // Rules for text files (return source as string)

@@ -30,10 +30,10 @@ async function action({ locale }) {
 
   return {
     chunks: ['about'],
-    title: data.title,
+    title: data.attributes.title,
     component: (
       <Layout>
-        <Page {...data} />
+        <Page title={data.attributes.title} html={data.html} />
       </Layout>
     ),
   };
