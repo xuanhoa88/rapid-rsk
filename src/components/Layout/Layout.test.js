@@ -23,7 +23,7 @@ const mockStore = configureStore(middlewares);
 const initialState = {
   runtime: {
     initialNow: Date.now(),
-    appLocales: {
+    availableLocales: {
       'en-US': { name: 'English (US)' },
       'vi-VN': { name: 'Tiếng Việt' },
     },
@@ -32,9 +32,9 @@ const initialState = {
   },
   intl: {
     locale: 'en-US',
-    newLocale: null,
+    localeLoading: null,
     messages: {},
-    fallbackWarning: null,
+    localeFallback: null,
   },
   user: null,
 };

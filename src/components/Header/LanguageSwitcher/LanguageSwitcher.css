@@ -1,0 +1,71 @@
+/**
+ * React Starter Kit (https://github.com/xuanhoa88/rapid-rsk/)
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE.txt file in the root directory of this source tree.
+ */
+
+@import '../../variables.css';
+
+.root {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  white-space: nowrap;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  line-height: 1;
+}
+
+/* Base link styling */
+.link,
+.active {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: var(--spacing-2) var(--spacing-3);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: -0.01em;
+  color: rgba(255, 255, 255, 0.7);
+  text-decoration: none;
+  border-radius: var(--radius-md);
+  transition:
+    color var(--transition-fast),
+    background-color var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+/* Regular link */
+.link:hover {
+  color: rgba(255, 255, 255, 0.95);
+  background-color: rgba(255, 255, 255, 0.1);
+  transform: translateY(-1px);
+}
+
+/* Active/selected language - highlighted */
+.active {
+  color: white;
+  background-color: rgba(255, 255, 255, 0.2);
+  font-weight: var(--font-weight-semibold);
+  cursor: default;
+  pointer-events: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .root {
+    justify-content: center;
+    gap: var(--spacing-2);
+  }
+
+  .link,
+  .active {
+    min-height: 36px;
+    padding: var(--spacing-2);
+    font-size: var(--font-size-xs);
+    letter-spacing: 0;
+  }
+}

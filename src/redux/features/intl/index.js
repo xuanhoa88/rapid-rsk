@@ -18,3 +18,12 @@ export {
 
 // Public API - Reducer
 export { default } from './reducer'; // Default export for rootReducer
+
+// Public API - Selectors
+export {
+  getLocale,
+  getLocaleLoading,
+  isLocaleLoading,
+  getLocaleMessages,
+  getLocaleFallback,
+} from './reducer';

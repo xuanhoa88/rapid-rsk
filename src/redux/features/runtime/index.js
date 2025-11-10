@@ -25,7 +25,7 @@ export { default } from './reducer'; // Default export for rootReducer
  *
  * @example
  * const appName = getRuntimeVariable(state, 'appName', 'Default App');
- * const appLocales = getRuntimeVariable(state, 'appLocales', {});
+ * const availableLocales = getRuntimeVariable(state, 'availableLocales', {});
  */
 export const getRuntimeVariable = (state, name, defaultValue) => {
   const value = state.runtime && state.runtime[name];

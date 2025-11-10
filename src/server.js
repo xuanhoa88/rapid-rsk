@@ -17,8 +17,7 @@ import path from 'path';
 import PrettyError from 'pretty-error';
 import ReactDOM from 'react-dom/server';
 import { configureStore, setLocale, setRuntimeVariable } from './redux';
-import { apiModels } from './api';
-import apiRoutes from './api/routes';
+import { apiModels, apiRoutes } from './api';
 import App from './components/App';
 import Html from './components/Html';
 import { createFetch } from './createFetch';
@@ -103,10 +102,10 @@ function createEnhancedError(message, originalError, context = {}) {
  * @param {Object} req - Express request
  * @param {Object} fetch - Fetch client
  * @param {Object} i18n - i18next instance
- * @param {Object} locales - Available locales
+ * @param {Object} availableLocales - Available locales (from AVAILABLE_LOCALES)
  * @returns {Promise<Object>} Configured store
  */
-async function createReduxStore(req, fetch, i18n, locales) {
+async function createReduxStore(req, fetch, i18n, availableLocales) {
   // Create store with initial user state
   const store = configureStore(
     { user: req.user || null },
@@ -117,7 +116,7 @@ async function createReduxStore(req, fetch, i18n, locales) {
   // These are dispatched to Redux store and available at state.runtime.*
   const runtimeVariables = {
     initialNow: Date.now(), // Timestamp for SSR consistency
-    appLocales: locales, // Available locales for language switcher
+    availableLocales, // Available locales for language switcher (from i18n/AVAILABLE_LOCALES)
     appName: process.env.RSK_APP_NAME || 'React Starter Kit',
     appDescription:
       process.env.RSK_APP_DESCRIPTION ||

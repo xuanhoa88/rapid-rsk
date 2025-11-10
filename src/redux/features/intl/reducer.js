@@ -15,21 +15,23 @@ import {
 // Initial state for intl feature
 const initialState = {
   locale: null,
-  newLocale: null,
+  localeLoading: null, // Locale currently being loaded (null = no loading in progress)
   messages: {},
-  fallbackWarning: null,
+  localeFallback: null, // Fallback info when requested locale is not available
 };
 
 export default function intl(state = initialState, action) {
   switch (action.type) {
     case SET_LOCALE_START: {
-      const locale = state[action.payload.locale]
+      // If messages already loaded, switch locale immediately
+      // Otherwise, keep current locale and show loading state
+      const locale = state.messages[action.payload.locale]
         ? action.payload.locale
         : state.locale;
       return {
         ...state,
         locale,
-        newLocale: action.payload.locale,
+        localeLoading: action.payload.locale,
       };
     }
 
@@ -37,7 +39,7 @@ export default function intl(state = initialState, action) {
       return {
         ...state,
         locale: action.payload.locale,
-        newLocale: null,
+        localeLoading: null,
         messages: {
           ...state.messages,
           [action.payload.locale]: action.payload.messages,
@@ -48,17 +50,17 @@ export default function intl(state = initialState, action) {
     case SET_LOCALE_ERROR: {
       return {
         ...state,
-        newLocale: null,
+        localeLoading: null,
       };
     }
 
     case SET_LOCALE_FALLBACK: {
       return {
         ...state,
-        fallbackWarning: {
+        localeFallback: {
           requestedLocale: action.payload.requestedLocale,
           fallbackLocale: action.payload.fallbackLocale,
-          appLocaleCodes: action.payload.appLocaleCodes,
+          availableLocaleCodes: action.payload.availableLocaleCodes,
           timestamp: Date.now(),
         },
       };
@@ -69,3 +71,46 @@ export default function intl(state = initialState, action) {
     }
   }
 }
+
+// =============================================================================
+// SELECTORS
+// =============================================================================
+
+/**
+ * Get current locale
+ * @param {Object} state - Redux state
+ * @returns {string|null} Current locale code
+ */
+export const getLocale = state => (state.intl && state.intl.locale) || null;
+
+/**
+ * Get locale currently being loaded
+ * @param {Object} state - Redux state
+ * @returns {string|null} Locale being loaded, or null if no loading in progress
+ */
+export const getLocaleLoading = state =>
+  (state.intl && state.intl.localeLoading) || null;
+
+/**
+ * Check if a locale is currently being loaded
+ * @param {Object} state - Redux state
+ * @returns {boolean} True if locale is loading
+ */
+export const isLocaleLoading = state => !!getLocaleLoading(state);
+
+/**
+ * Get loaded messages for a specific locale
+ * @param {Object} state - Redux state
+ * @param {string} locale - Locale code
+ * @returns {Object|null} Messages object or null if not loaded
+ */
+export const getLocaleMessages = (state, locale) =>
+  (state.intl && state.intl.messages && state.intl.messages[locale]) || null;
+
+/**
+ * Get locale fallback info if any
+ * @param {Object} state - Redux state
+ * @returns {Object|null} Fallback info object or null
+ */
+export const getLocaleFallback = state =>
+  (state.intl && state.intl.localeFallback) || null;

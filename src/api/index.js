@@ -6,4 +6,4 @@
  */
 
 export * as apiModels from './models';
-export * as apiRoutes from './routes';
+export { default as apiRoutes } from './routes';

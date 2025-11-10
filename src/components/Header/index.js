@@ -6,7 +6,7 @@
  */
 import PropTypes from 'prop-types';
 import { useTranslation } from 'react-i18next';
-import LanguageSwitcher from '../LanguageSwitcher';
+import LanguageSwitcher from './LanguageSwitcher';
 import Link from '../Link';
 import Navigation from '../Navigation';
 import s from './Header.css';

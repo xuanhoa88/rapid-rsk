@@ -60,7 +60,7 @@ function updateLocaleUrl(locale, navigator) {
  * Set application locale
  *
  * Changes the application language and persists the choice:
- * 1. Validates locale against appLocales runtime variable from Redux store
+ * 1. Validates locale against availableLocales runtime variable from Redux store
  * 2. Falls back to first available locale if invalid
  * 3. Dispatches SET_LOCALE_START action
  * 4. Changes i18next language
@@ -72,7 +72,7 @@ function updateLocaleUrl(locale, navigator) {
  * @returns {Function} Redux thunk action
  *
  * @example
- * // Set locale (validates against appLocales runtime variable)
+ * // Set locale (validates against availableLocales runtime variable)
  * dispatch(setLocale('en-US'));
  *
  * @example
@@ -83,8 +83,9 @@ export function setLocale(locale) {
   return async (dispatch, getState, { navigator, i18n }) => {
     // Get available locales from runtime variables in Redux store
     const state = getState();
-    const appLocales = (state.runtime && state.runtime.appLocales) || {};
-    const appLocaleCodes = Object.keys(appLocales);
+    const availableLocales =
+      (state.runtime && state.runtime.availableLocales) || {};
+    const availableLocaleCodes = Object.keys(availableLocales);
 
     // Validate locale parameter
     if (!locale || typeof locale !== 'string') {
@@ -93,13 +94,16 @@ export function setLocale(locale) {
     }
 
     // Check if locale is available
-    if (appLocaleCodes.length > 0 && !appLocaleCodes.includes(locale)) {
+    if (
+      availableLocaleCodes.length > 0 &&
+      !availableLocaleCodes.includes(locale)
+    ) {
       const requestedLocale = locale;
-      const fallbackLocale = appLocaleCodes[0] || 'en-US';
+      const fallbackLocale = availableLocaleCodes[0] || 'en-US';
 
       console.warn(
         `Locale "${requestedLocale}" is not available. Available locales:`,
-        appLocaleCodes,
+        availableLocaleCodes,
       );
       console.info(`Falling back to locale: ${fallbackLocale}`);
 
@@ -109,7 +113,7 @@ export function setLocale(locale) {
         payload: {
           requestedLocale,
           fallbackLocale,
-          appLocaleCodes,
+          availableLocaleCodes,
         },
       });
 

@@ -16,18 +16,16 @@ import enUS from './translations/en-US.json';
 
 export const DEFAULT_LOCALE = 'en-US';
 
-const locales = Object.freeze({
+// Internal locale configurations with translations
+const LOCALE_CONFIGS = Object.freeze({
   'en-US': { name: 'English (US)', translation: enUS },
   'vi-VN': { name: 'Tiếng Việt', translation: viVN },
 });
 
-// =============================================================================
-// LOCALE UTILITIES (Cached for Performance)
-// =============================================================================
-
+// Public API: Available locales without translations (for Redux/components)
 export const AVAILABLE_LOCALES = Object.freeze(
-  Object.keys(locales).reduce((acc, key) => {
-    acc[key] = Object.freeze({ name: locales[key].name });
+  Object.keys(LOCALE_CONFIGS).reduce((acc, key) => {
+    acc[key] = { name: LOCALE_CONFIGS[key].name };
     return acc;
   }, {}),
 );
@@ -37,8 +35,8 @@ export const AVAILABLE_LOCALES = Object.freeze(
 // =============================================================================
 
 const i18nConfig = {
-  resources: Object.keys(locales).reduce((acc, key) => {
-    acc[key] = { translation: locales[key].translation };
+  resources: Object.keys(LOCALE_CONFIGS).reduce((acc, key) => {
+    acc[key] = { translation: LOCALE_CONFIGS[key].translation };
     return acc;
   }, {}),
   lng: DEFAULT_LOCALE,
@@ -54,10 +52,6 @@ const i18nConfig = {
   debug:
     typeof process !== 'undefined' && process.env.RSK_I18N_DEBUG === 'true',
 };
-
-// =============================================================================
-// SINGLETON INSTANCE
-// =============================================================================
 
 /**
  * Create and initialize i18n instance immediately

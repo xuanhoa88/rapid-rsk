@@ -19,7 +19,7 @@ The application uses:
 {
   runtime: {      // Runtime variables (set via setRuntimeVariable)
     initialNow: Date,      // Timestamp for SSR consistency
-    appLocales: {},        // Available locales for language switcher
+    availableLocales: {},  // Available locales for language switcher
     appName: String,       // Application name
     appDescription: String, // Application description
   },
@@ -367,51 +367,6 @@ function PostsList() {
 export default PostsList;
 ```
 
-### Real Example: LanguageSwitcher Component
-
-See `src/components/LanguageSwitcher/index.js` for a complete example:
-
-```javascript
-import React, { useCallback } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
-import { setLocale } from '../../actions/intl';
-
-function LanguageSwitcher() {
-  const dispatch = useDispatch();
-
-  // Select data from store
-  const currentLocale = useSelector(state => state.intl.locale);
-  // Get appLocales from runtime variables
-  const appLocales = useSelector(state => state.runtime.appLocales || {});
-
-  // Memoized callback
-  const handleLocaleChange = useCallback(
-    (locale, e) => {
-      e.preventDefault();
-      dispatch(setLocale(locale));
-    },
-    [dispatch],
-  );
-
-  return (
-    <div>
-      {Object.keys(appLocales).map(locale => (
-        <a
-          key={locale}
-          href={`?lang=${locale}`}
-          onClick={e => handleLocaleChange(locale, e)}
-          className={locale === currentLocale ? 'active' : ''}
-        >
-          {appLocales[locale]}
-        </a>
-      ))}
-    </div>
-  );
-}
-
-export default LanguageSwitcher;
-```
-
 ### Legacy Approach: connect() HOC
 
 For class components or when you need more control:
@@ -471,26 +426,48 @@ See `src/server.js` for the complete implementation:
 
 ```javascript
 import { configureStore, setRuntimeVariable, setLocale } from './redux';
+import { AVAILABLE_LOCALES } from './i18n';
+import { createFetch } from './createFetch';
 import * as navigator from './navigator';
+import nodeFetch from 'node-fetch';
 
-// Create store for each request
-const store = configureStore(
-  {}, // Initial state
-  {
-    fetch: createFetch(nodeFetch, { baseUrl: config.api.serverUrl }),
-    navigator, // Navigator methods are server-safe (become no-ops)
-  },
-);
+/**
+ * Create Redux store for SSR with user, runtime vars, and locale
+ */
+async function createReduxStore(req, fetch, i18n, availableLocales) {
+  // Create store with initial user state (from JWT token)
+  const store = configureStore(
+    { user: req.user || null },
+    { fetch, navigator, i18n },
+  );
 
-// Dispatch runtime variables
-await store.dispatch(
-  setRuntimeVariable({
-    name: 'appLocales', // Runtime variable for language switcher
-    value: AVAILABLE_LOCALES,
-  }),
-);
+  // Define all runtime variables
+  const runtimeVariables = {
+    initialNow: Date.now(),
+    availableLocales,
+    appName: process.env.RSK_APP_NAME || 'React Starter Kit',
+    appDescription:
+      process.env.RSK_APP_DESCRIPTION ||
+      'Boilerplate for React.js web applications',
+  };
 
-await store.dispatch(setLocale(req.language));
+  // Dispatch all runtime variables at once
+  store.dispatch(setRuntimeVariable(runtimeVariables));
+
+  // Set locale from request
+  const locale = req.language || 'en-US';
+  await store.dispatch(setLocale(locale));
+
+  return store;
+}
+
+// In request handler:
+const fetch = createFetch(nodeFetch, {
+  baseUrl: `http://localhost:${process.env.RSK_PORT || 3000}`,
+  cookie: req.headers.cookie,
+});
+
+const store = await createReduxStore(req, fetch, i18n, AVAILABLE_LOCALES);
 
 // Render with store
 const app = (
@@ -537,7 +514,11 @@ export default {
 ```javascript
 import configureMockStore from 'redux-mock-store';
 import thunk from 'redux-thunk';
-import { fetchPosts, FETCH_POSTS_START, FETCH_POSTS_SUCCESS } from '../../redux/features/posts';
+import {
+  fetchPosts,
+  FETCH_POSTS_START,
+  FETCH_POSTS_SUCCESS,
+} from '../../redux/features/posts';
 
 const middlewares = [thunk.withExtraArgument({ fetch: mockFetch })];
 const mockStore = configureMockStore(middlewares);

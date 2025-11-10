@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { setLocale } from '../../redux';
+import { setLocale } from '../../../redux';
 import s from './LanguageSwitcher.css';
 
 /**
@@ -12,8 +12,10 @@ function LanguageSwitcher() {
   const dispatch = useDispatch();
   const currentLocale = useSelector(state => state.intl.locale);
 
-  // Get appLocales from runtime variables
-  const appLocales = useSelector(state => state.runtime.appLocales || {});
+  // Get available locales from runtime variables
+  const availableLocales = useSelector(
+    state => state.runtime.availableLocales || {},
+  );
 
   /**
    * Handle locale change
@@ -38,29 +40,27 @@ function LanguageSwitcher() {
     [currentLocale],
   );
 
+  // Don't render if no locales available (prevents hydration mismatch)
+  const localeEntries = Object.entries(availableLocales);
+  if (localeEntries.length === 0) {
+    return null;
+  }
+
   return (
     <div className={s.root}>
-      {Object.entries(appLocales).map(([code, { name }]) => (
-        <span key={code}>
-          {isSelected(code) ? (
-            <span>{name}</span>
-          ) : (
-            <a
-              href={`?lang=${code}`}
-              onClick={e => handleLocaleChange(code, e)}
-            >
-              {name}
-            </a>
-          )}
-        </span>
+      {localeEntries.map(([code, { name }]) => (
+        <a
+          key={code}
+          href={`?lang=${code}`}
+          onClick={e => handleLocaleChange(code, e)}
+          className={isSelected(code) ? s.active : s.link}
+          aria-current={isSelected(code) ? 'true' : undefined}
+        >
+          {name}
+        </a>
       ))}
     </div>
   );
 }
-
-// PropTypes for development-time type checking
-LanguageSwitcher.propTypes = {
-  // Note: Props are now obtained via hooks, but we keep PropTypes for documentation
-};
 
 export default LanguageSwitcher;

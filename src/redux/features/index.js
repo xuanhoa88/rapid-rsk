@@ -30,6 +30,12 @@ export {
   SET_LOCALE_SUCCESS,
   SET_LOCALE_ERROR,
   SET_LOCALE_FALLBACK,
+  // Selectors
+  getLocale,
+  getLocaleLoading,
+  isLocaleLoading,
+  getLocaleMessages,
+  getLocaleFallback,
   // Reducer (default export from feature)
   default as intlReducer,
 } from './intl';

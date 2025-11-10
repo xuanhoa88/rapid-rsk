@@ -104,7 +104,9 @@ const mockStore = configureStore(middlewares);
 const initialState = {
   runtime: {
     // Runtime variables
-    appLocales: ['en-US'],
+    availableLocales: {
+      'en-US': { name: 'English (US)' },
+    },
   },
   intl: {
     locale: 'en-US',
@@ -204,7 +206,7 @@ const mockStore = configureStore(middlewares);
 
 test('component with Redux', () => {
   const initialState = {
-    runtime: { appLocales: ['en-US'] }, // Runtime variables
+    runtime: { availableLocales: { 'en-US': { name: 'English (US)' } } }, // Runtime variables
     intl: { locale: 'en-US' },
   };
   
