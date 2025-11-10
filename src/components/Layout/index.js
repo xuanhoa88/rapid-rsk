@@ -6,21 +6,26 @@
  */
 
 import 'normalize.css';
+import PropTypes from 'prop-types';
 import Feedback from '../Feedback';
 import Footer from '../Footer';
 import Header from '../Header';
 import './Layout.css';
 
-// eslint-disable-next-line react/prop-types
-function Layout({ children }) {
+function Layout({ children, showHero = false }) {
   return (
     <div>
-      <Header />
+      <Header showHero={showHero} />
       {children}
       <Feedback />
       <Footer />
     </div>
   );
 }
+
+Layout.propTypes = {
+  children: PropTypes.node.isRequired,
+  showHero: PropTypes.bool,
+};
 
 export default Layout;

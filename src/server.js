@@ -218,9 +218,8 @@ async function renderPageToHtml({
     // Prepare HTML data object for Html component
     const htmlData = {
       ...metadata,
-      // Styles
-      styles: styleElements.map((element, index) => ({
-        id: `loadable-style-${index}`,
+      // Styles (no ID to hide implementation details)
+      styles: styleElements.map(element => ({
         cssText: getInnerHTML(element) || '',
       })),
       styleLinks: linkElements

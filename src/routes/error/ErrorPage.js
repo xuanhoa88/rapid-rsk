@@ -11,7 +11,7 @@ import s from './ErrorPage.css';
 function ErrorPage({ error = null }) {
   if (__DEV__ && error) {
     return (
-      <div className={s.errorPageWrapper}>
+      <div className={s.root}>
         <div className={s.container}>
           <h1 className={s.title}>{error.name}</h1>
           <pre className={s.details}>{error.stack}</pre>
@@ -21,7 +21,7 @@ function ErrorPage({ error = null }) {
   }
 
   return (
-    <div className={s.errorPageWrapper}>
+    <div className={s.root}>
       <div className={s.container}>
         <h1 className={s.title}>Error</h1>
         <p>Sorry, a critical error occurred on this page.</p>

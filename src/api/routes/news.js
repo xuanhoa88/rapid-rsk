@@ -14,29 +14,50 @@ const router = Router();
  * Returns mock news data for the home page
  */
 router.get('/', (req, res) => {
-  // Mock news data
+  // Mock news data - Showcasing React Starter Kit features and updates
   const mockNews = {
     payload: [
       {
         id: 1,
-        title: 'React 18 Released',
-        link: 'https://react.dev/blog/2022/03/29/react-v18',
+        title: 'Vietnamese Locale Support Added',
+        link: '/about?lang=vi-VN',
         contentSnippet:
-          'React 18 is now available on npm! In our last post, we shared step-by-step instructions for upgrading your app to React 18.',
+          'React Starter Kit now supports Vietnamese (vi-VN) locale with full translations for UI elements, navigation, and content pages. Switch languages seamlessly using the language switcher.',
       },
       {
         id: 2,
-        title: 'Introducing React Server Components',
-        link: 'https://react.dev/blog/2023/03/22/react-labs-what-we-have-been-working-on-march-2023',
+        title: 'Server-Side Rendering with React 18',
+        link: 'https://react.dev/blog/2022/03/29/react-v18',
         contentSnippet:
-          'React Server Components allow you to write components that render on the server and stream to the client.',
+          'Built with React 18 and SSR support for improved performance and SEO. Features automatic code splitting, lazy loading, and optimized bundle sizes for faster page loads.',
       },
       {
         id: 3,
-        title: 'React Starter Kit',
+        title: 'Redux State Management',
+        link: '/admin',
+        contentSnippet:
+          'Centralized Redux architecture with organized features: internationalization (intl), runtime variables, and user authentication. Clean public API with simplified imports.',
+      },
+      {
+        id: 4,
+        title: 'Modern UI Design System',
+        link: '/contact',
+        contentSnippet:
+          'Professional responsive design with CSS Modules, design tokens, and reusable layout components. Mobile-first approach with proper touch targets and accessibility features.',
+      },
+      {
+        id: 5,
+        title: 'Internationalization (i18n) Ready',
+        link: '/about',
+        contentSnippet:
+          'Built-in i18n support with react-i18next. Easily add new languages, locale-specific content, and automatic language detection. Currently supports English and Vietnamese.',
+      },
+      {
+        id: 6,
+        title: 'React Starter Kit - Production Ready',
         link: 'https://github.com/xuanhoa88/rapid-rsk',
         contentSnippet:
-          'React Starter Kit — isomorphic web app boilerplate (Node.js, Express, GraphQL, React.js, Babel, PostCSS, Webpack, Browsersync)',
+          'Isomorphic web app boilerplate with Node.js, Express, React 18, Redux, Webpack 5, CSS Modules, Hot Module Replacement, and comprehensive testing setup.',
       },
     ],
   };

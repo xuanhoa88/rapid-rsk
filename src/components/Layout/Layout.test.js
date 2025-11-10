@@ -25,7 +25,7 @@ const initialState = {
     initialNow: Date.now(),
     appLocales: {
       'en-US': { name: 'English (US)' },
-      'cs-CZ': { name: 'Čeština' },
+      'vi-VN': { name: 'Tiếng Việt' },
     },
     appName: 'React Starter Kit',
     appDescription: 'Boilerplate for React.js web applications',

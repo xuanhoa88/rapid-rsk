@@ -42,6 +42,7 @@
   --color-dark-bg: #1f2937; /* Gray 800 */
   --color-dark-bg-secondary: #111827; /* Gray 900 */
   --color-dark-text: #f9fafb; /* Gray 50 */
+  --color-dark-navy: #1a1a2e; /* Dark Navy - Header/Footer */
 
   /* Gradient Backgrounds */
   --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);

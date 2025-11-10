@@ -7,109 +7,191 @@
 
 @import '../variables.css';
 
-.root {
-  background: var(--gradient-subtle);
-  border-bottom: 1px solid var(--color-border);
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+/* =============================================================================
+   NAVIGATION BAR (STICKY)
+   ============================================================================= */
+
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--color-dark-navy);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 2px 8px 0 rgba(0, 0, 0, 0.15);
+  width: 100%;
 }
 
-/* Header Navigation Bar */
-.container {
+.navContainer {
   max-width: var(--max-content-width);
   margin: 0 auto;
-  padding: var(--spacing-5) var(--spacing-6);
+  padding: var(--spacing-4) var(--spacing-6);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--spacing-6);
-  flex-wrap: wrap;
 }
 
-/* Brand/Logo - Always first visually */
+/* Brand/Logo */
 .brand {
-  color: var(--color-primary);
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-bold);
+  color: white;
   text-decoration: none;
   display: flex;
   align-items: center;
-  gap: var(--spacing-2);
-  transition: color var(--transition-fast);
+  gap: var(--spacing-3);
+  transition: all var(--transition-base);
   flex-shrink: 0;
-  order: 1;
-}
-
-.brand:hover {
-  color: var(--color-primary-hover);
-  text-decoration: none;
-}
-
-.brand:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
+  padding: var(--spacing-2);
+  margin-left: calc(var(--spacing-2) * -1);
   border-radius: var(--radius-md);
 }
 
+.brand:hover {
+  background: rgba(255, 255, 255, 0.08);
+  text-decoration: none;
+}
+
+.brand:hover .brandTxt {
+  color: rgba(255, 255, 255, 1);
+}
+
+.brand:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.5);
+  outline-offset: 2px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
 .brand img {
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
+  display: block;
+  transition: transform var(--transition-base);
+}
+
+.brand:hover img {
+  transform: scale(1.05);
 }
 
 .brandTxt {
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-semibold);
-  letter-spacing: -0.01em;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.95);
+  transition: color var(--transition-base);
 }
 
-/* Navigation - Center on desktop */
-.container > div:first-child {
-  order: 2;
-  flex: 1;
-  display: flex;
-  justify-content: center;
-}
+/* =============================================================================
+   HERO SECTION
+   ============================================================================= */
 
-/* Language Switcher - Right side */
-.container > div:nth-child(3) {
-  order: 3;
-  flex-shrink: 0;
-}
-
-/* Banner - Full width below header */
-.banner {
-  order: 4;
-  width: 100%;
-  text-align: center;
-  padding: var(--spacing-16) var(--spacing-6) var(--spacing-20);
+.hero {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  margin: 0;
+  padding: var(--spacing-20) var(--spacing-6);
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  width: 100%;
 }
 
-.bannerTitle {
-  margin: 0 0 var(--spacing-4);
-  padding: 0;
+.hero::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at 30% 50%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+              radial-gradient(circle at 70% 80%, rgba(255, 255, 255, 0.08) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+.heroContent {
+  max-width: 800px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 1;
+}
+
+.heroTitle {
   font-size: var(--font-size-5xl);
   font-weight: var(--font-weight-bold);
-  line-height: var(--line-height-tight);
-  letter-spacing: -0.03em;
   color: white;
+  margin: 0 0 var(--spacing-6);
+  letter-spacing: -0.04em;
+  line-height: 1.1;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
-.banner p {
-  margin: 0;
+.heroSubtitle {
   font-size: var(--font-size-xl);
-  opacity: 0.95;
-  max-width: 700px;
-  margin: 0 auto;
-  line-height: var(--line-height-relaxed);
+  font-weight: var(--font-weight-normal);
   color: rgba(255, 255, 255, 0.95);
+  margin: 0 0 var(--spacing-10);
+  line-height: 1.6;
+  letter-spacing: -0.01em;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
 }
+
+.heroActions {
+  display: flex;
+  gap: var(--spacing-4);
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.btnPrimary,
+.btnSecondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-4) var(--spacing-8);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  border-radius: var(--radius-lg);
+  text-decoration: none;
+  transition: all var(--transition-base);
+  min-width: 160px;
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+
+.btnPrimary {
+  background: white;
+  color: #667eea;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.btnPrimary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+  color: #764ba2;
+  text-decoration: none;
+}
+
+.btnSecondary {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(10px);
+}
+
+.btnSecondary:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-2px);
+  text-decoration: none;
+}
+
+/* =============================================================================
+   RESPONSIVE DESIGN
+   ============================================================================= */
 
 /* Tablet */
 @media (max-width: 992px) {
-  .container {
-    padding: var(--spacing-4) var(--spacing-4);
+  .navContainer {
+    padding: var(--spacing-3) var(--spacing-4);
     gap: var(--spacing-4);
   }
 
@@ -126,31 +208,38 @@
     font-size: var(--font-size-sm);
   }
 
-  .banner {
-    padding: var(--spacing-12) var(--spacing-4) var(--spacing-16);
+  .hero {
+    padding: var(--spacing-16) var(--spacing-4);
   }
 
-  .bannerTitle {
+  .heroTitle {
     font-size: var(--font-size-4xl);
   }
 
-  .banner p {
+  .heroSubtitle {
     font-size: var(--font-size-lg);
   }
 }
 
 /* Mobile */
 @media (max-width: 768px) {
-  .container {
-    padding: var(--spacing-3) var(--spacing-4);
-    gap: var(--spacing-3);
-    flex-direction: column;
+  .navbar {
+    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.2);
   }
 
+  .navContainer {
+    padding: var(--spacing-3) var(--spacing-4);
+    gap: var(--spacing-4);
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  /* Row 1: Brand (left) */
   .brand {
+    font-size: var(--font-size-lg);
     order: 1;
-    width: 100%;
-    justify-content: center;
+    flex: 0 0 auto;
+    gap: var(--spacing-2);
   }
 
   .brand img {
@@ -159,33 +248,53 @@
   }
 
   .brandTxt {
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-bold);
   }
 
-  /* Navigation below brand on mobile */
-  .container > div:first-child {
+  /* Row 1: Language switcher (right) */
+  .navContainer > div:nth-child(3) {
     order: 2;
-    width: 100%;
-    justify-content: center;
+    margin-left: auto;
+    flex-shrink: 0;
   }
 
-  /* Language switcher below navigation */
-  .container > div:nth-child(3) {
+  /* Row 2: Navigation (centered, full width) */
+  .navContainer > div:nth-child(2) {
     order: 3;
     width: 100%;
+    display: flex;
     justify-content: center;
+    padding-top: var(--spacing-2);
+    border-top: 1px solid var(--color-border);
   }
 
-  .banner {
-    order: 4;
+  /* Hero section */
+  .hero {
     padding: var(--spacing-10) var(--spacing-4) var(--spacing-12);
   }
 
-  .bannerTitle {
+  .heroTitle {
     font-size: var(--font-size-3xl);
+    margin-bottom: var(--spacing-4);
   }
 
-  .banner p {
+  .heroSubtitle {
+    font-size: var(--font-size-sm);
+    margin-bottom: var(--spacing-6);
+    line-height: var(--line-height-normal);
+  }
+
+  .heroActions {
+    flex-direction: column;
+    gap: var(--spacing-3);
+  }
+
+  .btnPrimary,
+  .btnSecondary {
+    width: 100%;
+    max-width: 100%;
+    padding: var(--spacing-3) var(--spacing-6);
     font-size: var(--font-size-base);
   }
 }

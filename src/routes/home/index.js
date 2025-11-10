@@ -8,15 +8,21 @@
 import Layout from '../../components/Layout';
 import Home from './Home';
 
+/**
+ * Home route
+ */
 async function action({ fetch }) {
+  const title = 'Home';
+
   // Fetch news data from API
   const data = await fetch('/api/news');
 
   return {
     chunks: ['home'],
+    title,
     component: (
-      <Layout>
-        <Home data={{ loading: false, ...data }} />
+      <Layout showHero>
+        <Home loading={false} payload={data.payload} />
       </Layout>
     ),
   };

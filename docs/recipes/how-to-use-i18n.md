@@ -26,7 +26,7 @@ function MyComponent() {
 Currently supported languages:
 
 - **English (US)** - `en-US` (default)
-- **Czech** - `cs-CZ`
+- **Vietnamese** - `vi-VN`
 
 ## Translation Files
 
@@ -35,7 +35,7 @@ Translation files are located in `src/i18n/translations/`:
 ```
 src/i18n/translations/
 ├── en-US.json
-└── cs-CZ.json
+└── vi-VN.json
 ```
 
 ### Translation File Format
@@ -101,7 +101,7 @@ const { t } = useTranslation();
 import i18n from 'src/i18n';
 
 // Change language
-i18n.changeLanguage('cs-CZ');
+i18n.changeLanguage('vi-VN');
 
 // Get current language
 const currentLang = i18n.language;
@@ -122,7 +122,7 @@ function LanguageSwitcher() {
   return (
     <div>
       <button onClick={() => changeLanguage('en-US')}>English</button>
-      <button onClick={() => changeLanguage('cs-CZ')}>Čeština</button>
+      <button onClick={() => changeLanguage('vi-VN')}>Tiếng Việt</button>
     </div>
   );
 }
@@ -138,12 +138,12 @@ import { initReactI18next } from 'react-i18next';
 
 // Import translations
 import enUS from './translations/en-US.json';
-import csCZ from './translations/cs-CZ.json';
+import viVN from './translations/vi-VN.json';
 
 i18n.use(initReactI18next).init({
   resources: {
     'en-US': { translation: enUS },
-    'cs-CZ': { translation: csCZ },
+    'vi-VN': { translation: viVN },
   },
   lng: 'en-US', // Default language
   fallbackLng: 'en-US', // Fallback language
@@ -211,7 +211,7 @@ jest.mock('react-i18next', () => ({
    i18n.init({
      resources: {
        'en-US': { translation: enUS },
-       'cs-CZ': { translation: csCZ },
+       'vi-VN': { translation: viVN },
        'de-DE': { translation: deDE }, // Add new language
      },
    });
@@ -343,7 +343,7 @@ rtf.format(-3, 'month'); // "3 months ago"
 ```javascript
 // Make sure to use i18n.changeLanguage()
 import i18n from 'src/i18n';
-i18n.changeLanguage('cs-CZ');
+i18n.changeLanguage('vi-VN');
 
 // Components will automatically re-render
 ```

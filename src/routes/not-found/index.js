@@ -8,6 +8,9 @@
 import Layout from '../../components/Layout';
 import NotFound from './NotFound';
 
+/**
+ * Not Found route (404)
+ */
 function action() {
   const title = 'Page Not Found';
   return {

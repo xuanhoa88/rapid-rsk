@@ -68,7 +68,7 @@ function updateLocaleUrl(locale, navigator) {
  * 6. Saves locale to cookie (browser only)
  * 7. Updates URL with locale parameter (browser only)
  *
- * @param {string} locale - Locale code (e.g., 'en-US', 'cs-CZ')
+ * @param {string} locale - Locale code (e.g., 'en-US', 'vi-VN')
  * @returns {Function} Redux thunk action
  *
  * @example

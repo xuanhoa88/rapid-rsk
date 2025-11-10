@@ -13,8 +13,8 @@ async function action() {
   const data = await import(/* webpackChunkName: "privacy" */ './privacy.md');
 
   return {
+    chunks: ['privacy'],
     title: data.attributes.title,
-    chunk: 'privacy',
     component: (
       <Layout>
         <Page title={data.attributes.title} html={data.html} />

@@ -5,22 +5,24 @@
  * LICENSE.txt file in the root directory of this source tree.
  */
 
+@import '../../components/variables.css';
+
 /* Error page wrapper - overrides global styles */
-.errorPageWrapper {
+.root {
   /* Override global html/body styles */
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: var(--color-background-secondary);
+  background: var(--color-background);
   z-index: 9999;
   font-family: var(--font-family-base);
 }
 
 /* Override global styles for error page */
-.errorPageWrapper :global(html),
-.errorPageWrapper :global(body) {
+.root :global(html),
+.root :global(body) {
   margin: 0;
   padding: 0;
 }

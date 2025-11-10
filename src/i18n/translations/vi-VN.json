@@ -1,0 +1,24 @@
+{
+  "login": {
+    "title": "Đăng nhập"
+  },
+  "header": {
+    "brand": "React Starter Kit"
+  },
+  "navigation": {
+    "about": "Giới thiệu",
+    "contact": "Liên hệ",
+    "login": "Đăng nhập",
+    "register": "Đăng ký",
+    "home": "Trang chủ",
+    "admin": "Quản trị",
+    "privacy": "Bảo mật",
+    "notFound": "Không tìm thấy",
+    "separator": {
+      "or": "hoặc"
+    }
+  },
+  "footer": {
+    "copyright": "© {{year}} React Starter Kit. Mọi quyền được bảo lưu."
+  }
+}

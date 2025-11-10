@@ -141,10 +141,10 @@ function Html({
         <link rel='apple-touch-icon' href='/icon.png' />
 
         {/* Critical inline CSS from @loadable/component */}
-        {styles.map(({ id, cssText }) => (
+        {styles.map(({ cssText }, index) => (
           <style
-            key={id}
-            id={id}
+            key={index}
+            data-ssr=''
             dangerouslySetInnerHTML={{ __html: cssText }}
           />
         ))}
@@ -180,7 +180,6 @@ Html.propTypes = {
   type: PropTypes.string,
   styles: PropTypes.arrayOf(
     PropTypes.shape({
-      id: PropTypes.string.isRequired,
       cssText: PropTypes.string.isRequired,
     }),
   ),

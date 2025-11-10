@@ -140,7 +140,7 @@ src/i18n/
 ├── i18next.config.js    # i18next setup
 └── translations/        # Translation files
     ├── en-US.json       # English translations
-    └── cs-CZ.json       # Czech translations
+    └── vi-VN.json       # Vietnamese translations
 ```
 
 ### Utilities

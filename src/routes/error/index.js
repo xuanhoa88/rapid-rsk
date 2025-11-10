@@ -5,12 +5,23 @@
  * LICENSE.txt file in the root directory of this source tree.
  */
 
+import Layout from '../../components/Layout';
 import ErrorPage from './ErrorPage';
 
+/**
+ * Error route
+ */
 function action() {
+  const title = 'Error';
+
   return {
-    title: 'Demo Error',
-    component: <ErrorPage />,
+    chunks: ['error'],
+    title,
+    component: (
+      <Layout>
+        <ErrorPage />
+      </Layout>
+    ),
   };
 }
 

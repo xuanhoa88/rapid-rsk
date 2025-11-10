@@ -3,11 +3,7 @@
     "title": "Log In"
   },
   "header": {
-    "banner": {
-      "desc": "Complex web apps made easy",
-      "title": "React"
-    },
-    "brand": "Xtepify"
+    "brand": "React Starter Kit"
   },
   "navigation": {
     "about": "About",
@@ -23,6 +19,6 @@
     }
   },
   "footer": {
-    "copyright": "© Xtepify, All rights reserved"
+    "copyright": "© {{year}} React Starter Kit. All rights reserved."
   }
 }

@@ -7,7 +7,7 @@
 
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
-import csCZ from './translations/cs-CZ.json';
+import viVN from './translations/vi-VN.json';
 import enUS from './translations/en-US.json';
 
 // =============================================================================
@@ -18,7 +18,7 @@ export const DEFAULT_LOCALE = 'en-US';
 
 const locales = Object.freeze({
   'en-US': { name: 'English (US)', translation: enUS },
-  'cs-CZ': { name: 'Čeština', translation: csCZ },
+  'vi-VN': { name: 'Tiếng Việt', translation: viVN },
 });
 
 // =============================================================================

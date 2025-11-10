@@ -237,7 +237,7 @@ import { setLocale } from '../../actions/intl';
 
 test('setLocale action', async () => {
   const dispatch = jest.fn();
-  const locale = 'cs-CZ';
+  const locale = 'vi-VN';
   
   await setLocale(locale)(dispatch);
   

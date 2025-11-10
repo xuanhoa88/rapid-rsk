@@ -17,7 +17,8 @@ import router from './routes';
 import { configureStore } from './redux';
 
 /**
- * Get i18n instance for error page rendering
+ * Get i18n instance
+ * Will be initialized with correct locale after Redux store is created
  */
 const i18n = getI18nInstance();
 
@@ -137,6 +138,13 @@ const store = configureStore(window.__APP_STATE__.reduxState, {
   navigator,
   i18n,
 });
+
+// Sync i18n locale with Redux state from server
+// This prevents hydration mismatch between server and client
+const serverLocale = store.getState().intl && store.getState().intl.locale;
+if (serverLocale && i18n.language !== serverLocale) {
+  i18n.changeLanguage(serverLocale);
+}
 
 const context = {
   store,
@@ -289,8 +297,11 @@ async function onLocationChange(location, action) {
         window.history.scrollRestoration = 'manual';
       }
 
-      const elem = document.getElementById('css');
-      if (elem) elem.parentNode.removeChild(elem);
+      // Remove server-side injected CSS from @loadable/component
+      // These <style> tags are in the <head> and were used for SSR
+      // Client-side CSS will be loaded via <link> tags instead
+      const ssrStyles = document.head.querySelectorAll('style[data-ssr]');
+      ssrStyles.forEach(style => style.parentNode.removeChild(style));
     } else {
       if (typeof createRoot === 'function') {
         // React 18+

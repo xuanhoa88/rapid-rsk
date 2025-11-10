@@ -8,7 +8,10 @@
 import Layout from '../../components/Layout';
 import Contact from './Contact';
 
-async function action() {
+/**
+ * Contact route
+ */
+function action() {
   const title = 'Contact Us';
 
   return {
