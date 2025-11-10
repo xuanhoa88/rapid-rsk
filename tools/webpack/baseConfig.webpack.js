@@ -183,7 +183,7 @@ export const reText = /\.txt$/i;
  * client-side (client.js) and server-side (server.js) bundles
  */
 export default {
-  mode: isDebug ? 'development' : 'production',
+  mode: process.env.NODE_ENV || 'development',
 
   output: {
     path: config.resolvePath(config.BUILD_DIR, 'public', 'assets'),

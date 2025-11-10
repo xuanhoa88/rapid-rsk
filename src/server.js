@@ -148,8 +148,14 @@ async function createReduxStore(req, fetch, i18n, availableLocales) {
  * @returns {string|null} HTML content or null
  */
 function getInnerHTML(element) {
-  // eslint-disable-next-line no-underscore-dangle
-  return element?.props?.dangerouslySetInnerHTML?.__html || null;
+  return (
+    (element &&
+      element.props &&
+      element.props.dangerouslySetInnerHTML &&
+      // eslint-disable-next-line no-underscore-dangle
+      element.props.dangerouslySetInnerHTML.__html) ||
+    null
+  );
 }
 
 /**

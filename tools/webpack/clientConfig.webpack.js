@@ -46,8 +46,8 @@ export default merge(baseConfig, {
   plugins: [
     // Define free variables
     // https://webpack.js.org/plugins/define-plugin/
+    // NODE_ENV is baked into the bundle for React optimizations
     new webpack.DefinePlugin({
-      'process.env.BROWSER': true,
       __DEV__: isDebug,
     }),
 

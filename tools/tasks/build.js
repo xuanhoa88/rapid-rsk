@@ -5,9 +5,6 @@
  * LICENSE.txt file in the root directory of this source tree.
  */
 
-// Load environment variables from .env file
-require('dotenv').config();
-
 import fs from 'fs';
 import path from 'path';
 import { performance } from 'perf_hooks';
@@ -38,15 +35,14 @@ import messages from './i18n';
 
 /**
  * Generate package.json for build directory
+ * Contains only engines and dependencies - no scripts needed
+ * Users run the server directly with: node server.js
  */
 function generateBuildPackageJson() {
   const buildPackage = {
     private: true,
     engines: pkg.engines,
     dependencies: pkg.dependencies,
-    scripts: {
-      start: 'node server.js',
-    },
   };
 
   return JSON.stringify(buildPackage, null, 2);
@@ -134,7 +130,7 @@ function analyzeStats(stats) {
         if (!name.endsWith('.map')) {
           allAssets.push({
             name,
-            size: asset.size?.() || 0,
+            size: typeof asset.size === 'function' ? asset.size() : 0,
           });
         }
       });
@@ -408,29 +404,35 @@ export default async function main() {
       logInfo('📋 Next steps:');
       logInfo('');
       logInfo('  1️⃣  Install production dependencies (REQUIRED):');
-      logInfo('     npm install --production');
+      logInfo(`     cd '${config.BUILD_DIR}' && npm install --production`);
       logInfo('');
       logInfo('  2️⃣  Test locally:');
-      logInfo('     NODE_ENV=production node build/server.js');
+      logInfo(`     cd '${config.BUILD_DIR}'`);
+      logInfo(
+        '     export NODE_ENV=production RSK_JWT_SECRET=$(openssl rand -base64 32)',
+      );
+      logInfo('     node server.js');
       logInfo('');
       logInfo('  3️⃣  Deploy:');
       logInfo('     • Docker: See Dockerfile in project root');
-      logInfo('     • Server: Deploy build/ + node_modules/');
+      logInfo(
+        `     • Server: Deploy '${config.BUILD_DIR}' directory with node_modules/`,
+      );
       logInfo('');
-      logInfo('⚠️  Important: Server bundle requires node_modules/ at runtime');
+      logInfo(`⚠️  Important: Run server from '${config.BUILD_DIR}' directory`);
       logInfo('   See docs/deployment.md for complete deployment guide');
       logInfo('');
     }
 
     if (isVerbose()) {
       logInfo('📦 Build Summary:');
-      logInfo('   📁 Output: ./build/');
+      logInfo(`   📁 Output: '${config.BUILD_DIR}'`);
       logInfo(`   📊 Steps: ${buildSteps.length}`);
       logInfo('   📄 Files:');
-      logInfo('      • build/server.js (server bundle)');
-      logInfo('      • build/vendors.js (server vendors)');
-      logInfo('      • build/public/assets/ (client assets)');
-      logInfo('      • build/package.json (dependencies list)');
+      logInfo(`      • '${config.BUILD_DIR}/server.js' (server bundle)`);
+      logInfo(`      • '${config.BUILD_DIR}/vendors.js' (server vendors)`);
+      logInfo(`      • '${config.BUILD_DIR}/public/assets/' (client assets)`);
+      logInfo(`      • '${config.BUILD_DIR}/package.json' (dependencies list)`);
     }
   } catch (error) {
     const duration = Date.now() - startTime;

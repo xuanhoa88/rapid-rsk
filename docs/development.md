@@ -33,7 +33,7 @@ This guide covers the day-to-day development workflow for React Starter Kit.
 npm install
 
 # Copy environment variables
-cp .env.example .env
+cp .env.defaults .env
 
 # Start development server
 npm start

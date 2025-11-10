@@ -309,18 +309,24 @@ export default class IsomorphicRouter {
       pathnameWithoutBase,
     );
 
-    const resolveFn = this.options.resolveRoute || resolveRoute;
+    const resolveFn =
+      typeof this.options.resolveRoute === 'function'
+        ? this.options.resolveRoute
+        : resolveRoute;
     let matches;
     let nextMatches = null;
     let currentContext = context;
 
-    const next = (
-      resume,
-      parent = !matches?.done && matches?.value?.route,
-      prevResult,
-    ) => {
+    const next = (resume, parent, prevResult) => {
+      // Set default parent value
+      if (parent === undefined) {
+        parent =
+          matches && !matches.done && matches.value && matches.value.route
+            ? matches.value.route
+            : false;
+      }
       const routeToSkip =
-        prevResult === null && !matches?.done && matches.value.route;
+        prevResult === null && matches && !matches.done && matches.value.route;
       matches = nextMatches || matchResult.next(routeToSkip);
       nextMatches = null;
 
@@ -345,7 +351,7 @@ export default class IsomorphicRouter {
         resolveFn(currentContext, matches.value.params),
       ).then(result => {
         // If route action returned a result, use it
-        if (result !== null && result !== undefined) {
+        if (result != null) {
           return result;
         }
         // Otherwise, continue to next matching route

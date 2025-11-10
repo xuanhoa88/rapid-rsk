@@ -123,7 +123,7 @@ Update documentation when:
 - `README.md` - Main documentation
 - `docs/*.md` - Detailed guides
 - Code comments - JSDoc for functions
-- `.env.example` - New environment variables
+- `.env.defaults` - New environment variables
 
 ## Project Structure
 
@@ -253,7 +253,7 @@ npm test -- --verbose
 
 ```bash
 # Copy example file
-cp .env.example .env
+cp .env.defaults .env
 
 # Edit values
 nano .env

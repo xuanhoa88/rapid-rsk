@@ -105,29 +105,23 @@ async function calculateDirectorySize(dirPath) {
 /**
  * Check if path should be preserved based on configuration
  */
-function shouldPreservePath(targetPath, pathInfo) {
+function shouldPreservePath(targetPath, pathInfo, options = {}) {
+  const { preserveGit = true, maxAge = 7 * 24 * 60 * 60 * 1000 } = options;
+
   const relativePath = path.relative(process.cwd(), targetPath);
 
   // Always preserve git directories if configured
   if (
-    config.cleanPreserveGit &&
+    preserveGit &&
     (relativePath.includes('.git') || relativePath.endsWith('.git'))
   ) {
     return { preserve: true, reason: 'Git directory preservation enabled' };
   }
 
-  // Preserve node_modules if configured
-  if (
-    config.cleanPreserveNodeModules &&
-    relativePath.includes('node_modules')
-  ) {
-    return { preserve: true, reason: 'Node modules preservation enabled' };
-  }
-
   // Check age-based preservation
   if (
     pathInfo &&
-    pathInfo.age < config.cleanMaxAge &&
+    pathInfo.age < maxAge &&
     process.argv.includes('--preserve-recent')
   ) {
     return {
@@ -144,42 +138,58 @@ function shouldPreservePath(targetPath, pathInfo) {
  */
 async function enhancedCleanDir(targetPath, options = {}) {
   const startTime = Date.now();
+  const { preserveGit, maxAge, isDryRun, ...cleanOptions } = options;
 
   try {
     logDebug(`Cleaning directory: ${targetPath}`);
 
-    const pathInfo = await getFileInfo(targetPath);
-    if (!pathInfo.exists) {
-      logDebug(`Path does not exist: ${targetPath}`);
-      return { skipped: true, reason: 'Path does not exist' };
-    }
+    // Check if this is a glob pattern (contains *, ?, [, etc.)
+    const isGlobPattern = /[*?[]/.test(targetPath);
 
-    // Check if path should be preserved
-    const preserveCheck = shouldPreservePath(targetPath, pathInfo);
-    if (preserveCheck.preserve) {
-      state.preservedPaths.add(targetPath);
-      // eslint-disable-next-line no-plusplus
-      state.stats.preservedItems++;
-      logDebug(`Preserved ${targetPath}: ${preserveCheck.reason}`);
-      return { preserved: true, reason: preserveCheck.reason };
-    }
-
-    // Calculate size before deletion for statistics
+    // Initialize variables outside the if block for proper scoping
+    let pathInfo = null;
     let sizeInfo = { totalSize: 0, fileCount: 0, dirCount: 0 };
-    if (pathInfo.isDirectory) {
-      sizeInfo = await calculateDirectorySize(targetPath);
-      state.stats.totalDirectories += sizeInfo.dirCount;
-      state.stats.totalFiles += sizeInfo.fileCount;
-    } else {
-      sizeInfo.totalSize = pathInfo.size;
-      // eslint-disable-next-line no-plusplus
-      state.stats.totalFiles++;
-    }
 
-    state.stats.totalSize += sizeInfo.totalSize;
+    // For glob patterns, skip existence check and let rimraf handle it
+    if (!isGlobPattern) {
+      pathInfo = await getFileInfo(targetPath);
+      if (!pathInfo.exists) {
+        logDebug(`Path does not exist: ${targetPath}`);
+        return { skipped: true, reason: 'Path does not exist' };
+      }
+
+      // Check if path should be preserved
+      const preserveCheck = shouldPreservePath(targetPath, pathInfo, {
+        preserveGit,
+        maxAge,
+      });
+      if (preserveCheck.preserve) {
+        state.preservedPaths.add(targetPath);
+        // eslint-disable-next-line no-plusplus
+        state.stats.preservedItems++;
+        logDebug(`Preserved ${targetPath}: ${preserveCheck.reason}`);
+        return { preserved: true, reason: preserveCheck.reason };
+      }
+
+      // Calculate size before deletion for statistics
+      if (pathInfo.isDirectory) {
+        sizeInfo = await calculateDirectorySize(targetPath);
+        state.stats.totalDirectories += sizeInfo.dirCount;
+        state.stats.totalFiles += sizeInfo.fileCount;
+      } else {
+        sizeInfo.totalSize = pathInfo.size;
+        // eslint-disable-next-line no-plusplus
+        state.stats.totalFiles++;
+      }
+
+      state.stats.totalSize += sizeInfo.totalSize;
+    } else {
+      // For glob patterns, we can't calculate size beforehand
+      logDebug(`Using glob pattern: ${targetPath}`);
+    }
 
     // Perform cleaning (or dry run)
-    if (config.cleanDryRun) {
+    if (isDryRun) {
       logInfo(
         `[DRY RUN] Would delete: ${targetPath} (${formatBytes(
           sizeInfo.totalSize,
@@ -191,20 +201,22 @@ async function enhancedCleanDir(targetPath, options = {}) {
     await cleanDir(targetPath, {
       nosort: true,
       dot: true,
-      ...options,
+      ...cleanOptions,
     });
 
     const duration = Date.now() - startTime;
     state.cleanedPaths.add(targetPath);
     state.stats.freedSpace += sizeInfo.totalSize;
 
-    if (pathInfo.isDirectory) {
+    // Update stats based on what was cleaned
+    if (pathInfo && pathInfo.isDirectory) {
       // eslint-disable-next-line no-plusplus
       state.stats.deletedDirectories++;
-    } else {
+    } else if (pathInfo && pathInfo.isFile) {
       // eslint-disable-next-line no-plusplus
       state.stats.deletedFiles++;
     }
+    // For glob patterns (pathInfo is null), stats are already updated from sizeInfo
 
     logVerbose(
       `Cleaned ${targetPath} (${formatBytes(
@@ -263,9 +275,23 @@ function getCleanStats() {
 export default async function main() {
   state.stats.startTime = new Date();
 
+  // Deep clean is enabled by default
+  // Set CLEAN_DEEP=false to disable
+  const isExplicitlyDisabled =
+    process.env.CLEAN_DEEP === 'false' || process.argv.includes('--deep=false');
+  const enableDeepClean = !isExplicitlyDisabled;
+
+  // Dry run mode - only show what would be deleted
+  const isDryRun = process.env.CLEAN_DRY_RUN === 'true';
+
+  // Preservation settings
+  const preserveGit = process.env.CLEAN_PRESERVE_GIT !== 'false';
+  const maxAge =
+    parseInt(process.env.CLEAN_MAX_AGE, 10) || 7 * 24 * 60 * 60 * 1000; // 7 days
+
   logInfo(`🧹 Starting enhanced cleanup operation...`);
 
-  if (config.cleanDryRun) {
+  if (isDryRun) {
     logWarn(`🔍 DRY RUN MODE: No files will actually be deleted`);
   }
 
@@ -278,9 +304,7 @@ export default async function main() {
         name: 'Build directory',
         path: `${config.BUILD_DIR}/*`,
         priority: 1,
-        options: {
-          ignore: config.cleanPreserveGit ? [`${config.BUILD_DIR}/.git`] : [],
-        },
+        options: {},
         description: 'Remove build artifacts and compiled files',
       },
       {
@@ -289,7 +313,7 @@ export default async function main() {
         priority: 2,
         options: {},
         description: 'Clear build and compilation caches',
-        condition: () => config.cleanEnableDeepClean,
+        condition: () => enableDeepClean,
       },
       {
         name: 'Temporary files',
@@ -297,16 +321,7 @@ export default async function main() {
         priority: 3,
         options: {},
         description: 'Remove temporary files and directories',
-        condition: () => config.cleanEnableDeepClean,
-      },
-      {
-        name: 'Node modules cache',
-        path: path.resolve(config.CWD, '.cache'),
-        priority: 4,
-        options: {},
-        description: 'Clear Node.js module caches',
-        condition: () =>
-          config.cleanEnableDeepClean && !config.cleanPreserveNodeModules,
+        condition: () => enableDeepClean,
       },
     ];
 
@@ -332,7 +347,13 @@ export default async function main() {
 
         // eslint-disable-next-line no-await-in-loop
         const result = await withFileSystemRetry(
-          () => enhancedCleanDir(target.path, target.options),
+          () =>
+            enhancedCleanDir(target.path, {
+              ...target.options,
+              preserveGit,
+              maxAge,
+              isDryRun,
+            }),
           {
             operation: `clean-${target.name
               .toLowerCase()
@@ -395,7 +416,7 @@ export default async function main() {
     const errorCount = results.filter(r => r.error).length;
     const preservedCount = results.filter(r => r.preserved).length;
 
-    if (config.cleanDryRun) {
+    if (isDryRun) {
       logInfo(
         `🔍 DRY RUN COMPLETE: Would free ${formatBytes(
           stats.totalSize,
@@ -405,10 +426,19 @@ export default async function main() {
       logInfo(
         `✅ Cleanup completed successfully in ${Math.round(stats.duration)}ms`,
       );
-      logInfo(`   🗑️  Freed space: ${formatBytes(stats.freedSpace)}`);
-      logInfo(
-        `   📁 Cleaned: ${stats.deletedDirectories} directories, ${stats.deletedFiles} files`,
-      );
+
+      if (
+        stats.freedSpace > 0 ||
+        stats.deletedFiles > 0 ||
+        stats.deletedDirectories > 0
+      ) {
+        logInfo(`   🗑️  Freed space: ${formatBytes(stats.freedSpace)}`);
+        logInfo(
+          `   📁 Cleaned: ${stats.deletedDirectories} directories, ${stats.deletedFiles} files`,
+        );
+      } else {
+        logInfo(`   📁 No files to clean (directory already empty)`);
+      }
 
       if (preservedCount > 0) {
         logInfo(`   🔒 Preserved: ${stats.preservedItems} items`);
@@ -444,7 +474,7 @@ export default async function main() {
       success: errorCount === 0,
       stats,
       results,
-      dryRun: config.cleanDryRun,
+      dryRun: isDryRun,
     };
   } catch (error) {
     state.stats.endTime = new Date();

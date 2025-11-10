@@ -74,7 +74,6 @@ export default merge(baseConfig, {
     // Define free variables
     // https://webpack.js.org/plugins/define-plugin/
     new webpack.DefinePlugin({
-      'process.env.BROWSER': false,
       __DEV__: isDebug,
       // Inject RSK_ prefixed environment variables
       ...createDotenvDefinitions({

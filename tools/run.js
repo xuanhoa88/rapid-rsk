@@ -5,6 +5,11 @@
  * LICENSE.txt file in the root directory of this source tree.
  */
 
+// Load environment variables from .env file
+// Uses override: true to ensure .env values take precedence over system environment
+// This allows local .env to override any pre-existing NODE_ENV or other variables
+require('dotenv').config({ override: true });
+
 import { spawn } from 'child_process';
 import path from 'path';
 import config from './config';
@@ -137,7 +142,7 @@ function executeTask(taskName) {
     // Spawn task in child process using babel-node
     const child = spawn('babel-node', [taskPath], {
       stdio: 'inherit', // Inherit stdin, stdout, stderr
-      env: { ...process.env }, // Pass environment with correct NODE_ENV
+      env: { ...process.env }, // Pass environment with task-specific overrides
       cwd: config.ROOT_DIR,
     });
 

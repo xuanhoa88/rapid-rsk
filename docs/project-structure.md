@@ -46,6 +46,7 @@ src/components/
 ```
 
 **Component Structure:**
+
 ```
 ComponentName/
 ├── index.js             # Component logic
@@ -70,6 +71,7 @@ src/routes/
 ```
 
 **Route Structure:**
+
 ```
 route-name/
 ├── index.js             # Route configuration and data loading
@@ -78,13 +80,14 @@ route-name/
 ```
 
 **Route Configuration Example:**
+
 ```javascript
 export default {
   path: '/about',
-  
+
   async action({ fetch }) {
     const data = await fetch('/api/about');
-    
+
     return {
       title: 'About Us',
       description: 'Learn more about our company',
@@ -227,7 +230,7 @@ build/
 ```
 .
 ├── .env                 # Environment variables (gitignored)
-├── .env.example         # Environment variables template
+├── .env.defaults        # Environment variables template
 ├── package.json         # Dependencies and scripts
 ├── .babelrc.js          # Babel configuration
 ├── .eslintrc.js         # ESLint configuration

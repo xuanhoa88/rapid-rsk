@@ -7,9 +7,6 @@
  * LICENSE.txt file in the root directory of this source tree.
  */
 
-// Load environment variables from .env file (development only)
-require('dotenv').config();
-
 import ReactRefreshWebpackPlugin from '@pmmmwh/react-refresh-webpack-plugin';
 import browserSync from 'browser-sync';
 import express from 'express';
@@ -49,7 +46,10 @@ function createCompilationPromise(name, compiler) {
     compiler.hooks.done.tap(name, stats => {
       if (stats.hasErrors()) {
         const errors = stats.compilation.errors || [];
-        const errorMsg = errors[0]?.message || 'Unknown compilation error';
+        const errorMsg =
+          errors.length > 0 && errors[0].message
+            ? errors[0].message
+            : 'Unknown compilation error';
         reject(
           new BuildError(`${name} compilation failed: ${errorMsg}`, {
             compiler: name,
@@ -240,7 +240,7 @@ function setupSSRMiddleware(server, serverCompiler) {
       return;
     }
 
-    if (stats?.hasErrors()) {
+    if (stats && typeof stats.hasErrors === 'function' && stats.hasErrors()) {
       if (isVerbose()) {
         logError(
           `Server compilation errors: ${stats.compilation.errors.length}`,
@@ -270,19 +270,43 @@ function setupSSRMiddleware(server, serverCompiler) {
 }
 
 /**
+ * Start Express server
+ */
+function startExpressServer(server) {
+  return new Promise((resolve, reject) => {
+    const httpServer = server.listen(
+      DEV_CONFIG.port,
+      DEV_CONFIG.host,
+      error => {
+        if (error) {
+          reject(
+            new BuildError(`Express server failed: ${error.message}`, {
+              suggestion: 'Check if port is available',
+              port: DEV_CONFIG.port,
+            }),
+          );
+        } else {
+          logInfo('🚀 Server started!');
+          logInfo(`📡 Server: http://${DEV_CONFIG.host}:${DEV_CONFIG.port}/`);
+          logInfo(`🌍 Environment: ${process.env.NODE_ENV}`);
+          resolve(httpServer);
+        }
+      },
+    );
+  });
+}
+
+/**
  * Start BrowserSync proxy server
  */
-function startBrowserSync(server) {
+function startBrowserSync() {
   return new Promise((resolve, reject) => {
     const bs = browserSync.create();
 
     bs.init(
       {
-        proxy: {
-          target: `http://${DEV_CONFIG.host}:${DEV_CONFIG.port}`,
-          middleware: [server],
-        },
-        port: DEV_CONFIG.port,
+        proxy: `http://${DEV_CONFIG.host}:${DEV_CONFIG.port}`,
+        // Let BrowserSync auto-assign port to avoid conflicts
         host: DEV_CONFIG.host,
         https: DEV_CONFIG.https,
         open: DEV_CONFIG.open,
@@ -302,7 +326,6 @@ function startBrowserSync(server) {
           reject(
             new BuildError(`BrowserSync failed: ${error.message}`, {
               suggestion: 'Check if port is available',
-              port: DEV_CONFIG.port,
             }),
           );
         } else {
@@ -317,7 +340,7 @@ function startBrowserSync(server) {
  * Main development server function
  * This is a long-running task that keeps the process alive
  */
-async function main() {
+export default async function main() {
   if (server) {
     logInfo('Development server already running');
     return server;
@@ -349,6 +372,12 @@ async function main() {
 
     // Setup Express server
     server = express();
+
+    // Serve static files from source public/ directory in development
+    // This is needed because:
+    // 1. The SSR app (src/server.js) serves from build/public/ (production path)
+    // 2. In development, build/public/ doesn't exist until after compilation
+    // 3. This middleware serves source public/ files before SSR app is loaded
     server.use(express.static(config.PUBLIC_DIR));
 
     // Setup webpack
@@ -368,13 +397,15 @@ async function main() {
     app = require(SERVER_BUNDLE_PATH).default;
     setAppReady();
 
-    // Start BrowserSync
-    browserSyncInstance = await startBrowserSync(server);
+    // Start Express server
+    await startExpressServer(server);
+
+    // Start BrowserSync proxy
+    browserSyncInstance = await startBrowserSync();
 
     // Success
     const duration = Date.now() - startTime;
     logInfo(`\n🎉 Development server ready in ${Math.round(duration / 1000)}s`);
-    logInfo(`   🌍 Local: http://${DEV_CONFIG.host}:${DEV_CONFIG.port}`);
 
     if (isVerbose()) {
       logInfo(`   🔥 HMR, Live Reload, Error Overlay enabled`);
@@ -405,11 +436,6 @@ async function main() {
     throw devError;
   }
 }
-
-// Mark this as a long-running task that should not auto-exit
-main.keepAlive = true;
-
-export default main;
 
 // Execute if called directly (as child process)
 if (require.main === module) {

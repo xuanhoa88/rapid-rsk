@@ -9,8 +9,9 @@ The application is configured using environment variables with the `RSK_` prefix
 ### Setup
 
 1. Copy the example environment file:
+
 ```bash
-cp .env.example .env
+cp .env.defaults .env
 ```
 
 2. Edit `.env` with your values
@@ -21,21 +22,25 @@ cp .env.example .env
 ## Server Configuration
 
 ### `RSK_PORT`
+
 - **Default:** `3000`
 - **Description:** Port number for the application server
 - **Example:** `RSK_PORT=8080`
 
 ### `RSK_HOST`
+
 - **Default:** `localhost`
 - **Description:** Host for the development server
 - **Example:** `RSK_HOST=0.0.0.0` (for Docker)
 
 ### `RSK_HTTPS`
+
 - **Default:** `false`
 - **Description:** Enable HTTPS for development server
 - **Example:** `RSK_HTTPS=true`
 
 ### `RSK_TRUST_PROXY`
+
 - **Default:** `loopback`
 - **Description:** Trust proxy setting for Express.js
 - **Options:** `loopback`, `linklocal`, `uniquelocal`, or specific IP addresses
@@ -45,18 +50,21 @@ cp .env.example .env
 ## API Configuration
 
 ### `RSK_API_BASE_URL`
+
 - **Default:** `` (empty - uses relative URLs)
 - **Description:** Base URL for browser API requests
 - **Example:** `RSK_API_BASE_URL=https://api.example.com`
 - **Use Case:** When API is on a different domain than the web server
 
 ### `RSK_API_PROXY_URL`
+
 - **Default:** `` (empty - no external proxy)
 - **Description:** External API URL to proxy `/api/*` requests to
 - **Example:** `RSK_API_PROXY_URL=https://api.github.com`
 - **Use Case:** Proxy client requests to external API, hide API keys, avoid CORS
 
 **How it works:**
+
 ```
 Client request: /api/users
 ↓
@@ -68,6 +76,7 @@ Proxied to: https://api.github.com/users
 ## Database Configuration
 
 ### `RSK_DATABASE_URL`
+
 - **Default:** `sqlite:database.sqlite`
 - **Description:** Database connection URL
 - **Examples:**
@@ -78,12 +87,14 @@ Proxied to: https://api.github.com/users
 ## Authentication Configuration
 
 ### `RSK_JWT_SECRET`
+
 - **Default:** `your-secret-key-change-this`
 - **Description:** Secret key for signing JWT tokens
 - **⚠️ IMPORTANT:** Change this in production!
 - **Example:** `RSK_JWT_SECRET=$(openssl rand -base64 32)`
 
 ### `RSK_JWT_EXPIRES_IN`
+
 - **Default:** `1d`
 - **Description:** JWT token expiration time
 - **Examples:**
@@ -92,7 +103,7 @@ Proxied to: https://api.github.com/users
   - `7d` - 7 days
   - `30d` - 30 days
 
-## Build-Time Configuration (RSK_ Variables)
+## Build-Time Configuration (RSK\_ Variables)
 
 Variables with `RSK_` prefix can be injected into the server bundle at build time for feature flags and non-sensitive configuration.
 
@@ -105,6 +116,7 @@ RSK_FEATURE_BETA_API=false
 ```
 
 Usage in code:
+
 ```javascript
 if (process.env.RSK_FEATURE_NEW_DASHBOARD === 'true') {
   app.use('/dashboard', newDashboardRouter);
@@ -129,27 +141,31 @@ RSK_RATE_LIMIT_REQUESTS=100
 ### ⚠️ Security Warning
 
 **DO NOT** use `RSK_` prefix for sensitive data:
+
 - ❌ `RSK_JWT_SECRET` - Use `JWT_SECRET` instead
 - ❌ `RSK_DATABASE_PASSWORD` - Use regular env vars
 - ✅ `RSK_FEATURE_FLAG` - OK for feature flags
 - ✅ `RSK_PUBLIC_API_URL` - OK for public URLs
 
-**Why?** RSK_ variables are baked into the server bundle and could be extracted. Keep secrets in regular environment variables.
+**Why?** RSK\_ variables are baked into the server bundle and could be extracted. Keep secrets in regular environment variables.
 
 ## Development Configuration
 
 ### `LOG_LEVEL`
+
 - **Default:** `info`
 - **Options:** `silent`, `info`, `verbose`, `debug`
 - **Description:** Logging verbosity
 - **Example:** `LOG_LEVEL=verbose npm start`
 
 ### `BROWSER`
+
 - **Default:** `default`
 - **Description:** Browser to open for development
 - **Example:** `BROWSER=chrome npm start`
 
 ### `WEBPACK_ANALYZE`
+
 - **Default:** `false`
 - **Description:** Enable webpack bundle analyzer
 - **Example:** `WEBPACK_ANALYZE=true npm run build`
@@ -157,16 +173,19 @@ RSK_RATE_LIMIT_REQUESTS=100
 ## Testing Configuration
 
 ### `CI`
+
 - **Default:** `false`
 - **Description:** Enable CI-specific settings
 - **Example:** `CI=true npm test`
 
 ### `COVERAGE`
+
 - **Default:** `false`
 - **Description:** Enable code coverage collection
 - **Example:** `COVERAGE=true npm test`
 
 ### `JEST_VERBOSE`
+
 - **Default:** `true`
 - **Description:** Verbose test output
 - **Example:** `JEST_VERBOSE=false npm test`
@@ -324,7 +343,7 @@ module.exports = {
       // Your custom rules...
     ],
   },
-  
+
   // Add custom plugins
   plugins: [
     // Your custom plugins...
@@ -341,11 +360,11 @@ module.exports = {
   // Build settings
   verbose: process.env.LOG_LEVEL === 'verbose',
   analyze: process.env.WEBPACK_ANALYZE === 'true',
-  
+
   // Paths
   buildDir: 'build',
   publicDir: 'public',
-  
+
   // Performance
   renderTimeout: 30000,
   renderParallel: 5,
@@ -392,11 +411,11 @@ RSK_DATABASE_URL=mysql://user:pass@host:3306/db?timezone=UTC
 2. **Use strong secrets** - Generate with `openssl rand -base64 32`
 3. **Rotate secrets regularly** - Change JWT secrets periodically
 4. **Use environment-specific configs** - Different values for dev/prod
-5. **Keep secrets out of RSK_ variables** - Use regular env vars for sensitive data
+5. **Keep secrets out of RSK\_ variables** - Use regular env vars for sensitive data
 
 ### Organization
 
-1. **Use `.env.example`** - Document all required variables
+1. **Use `.env.defaults`** - Document all required variables
 2. **Group related variables** - Server, API, Database, etc.
 3. **Add comments** - Explain what each variable does
 4. **Provide defaults** - Fallback values in code
@@ -417,8 +436,8 @@ RSK_DATABASE_URL=mysql://user:pass@host:3306/db?timezone=UTC
 ls -la .env
 
 # Check dotenv is loaded
-# Should be in tools/tasks/start.js and build.js
-require('dotenv').config();
+# Should be in tools/run.js
+require('dotenv').config({ override: true });
 ```
 
 ### Wrong Values

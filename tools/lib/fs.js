@@ -8,7 +8,6 @@
 import fsPromises from 'fs/promises';
 import path from 'path';
 import rimraf from 'rimraf';
-import { promisify } from 'util';
 import { BuildError, withFileSystemRetry } from './errorHandler';
 import { logDebug } from './logger';
 
@@ -263,13 +262,12 @@ export async function copyDir(source, target, options = {}) {
 
 /**
  * Clean/delete directory
+ * Note: rimraf v4+ is already promise-based, no need for promisify
  */
 export async function cleanDir(pattern, options = {}) {
-  const rimrafAsync = promisify(rimraf);
-
   return withFileSystemRetry(
     async () => {
-      await rimrafAsync(pattern, { glob: options });
+      await rimraf(pattern, options);
       logDebug(`🗑️  Cleaned directory: ${pattern}`);
     },
     { operation: 'cleanDir', pattern },

@@ -53,7 +53,6 @@ export default {
   // Clean configuration (clean.js)
   cleanEnableDeepClean: process.env.CLEAN_DEEP === 'true',
   cleanPreserveGit: process.env.CLEAN_PRESERVE_GIT !== 'false',
-  cleanPreserveNodeModules: process.env.CLEAN_PRESERVE_NODE_MODULES !== 'false',
   cleanDryRun: process.env.CLEAN_DRY_RUN === 'true',
   cleanMaxAge:
     parseInt(process.env.CLEAN_MAX_AGE, 10) || 7 * 24 * 60 * 60 * 1000, // 7 days

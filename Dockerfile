@@ -1,7 +1,7 @@
 # =============================================================================
 # Build Stage
 # =============================================================================
-FROM node:16-alpine AS builder
+FROM node:18-alpine AS builder
 
 WORKDIR /build
 
@@ -20,19 +20,17 @@ RUN npm run build
 # =============================================================================
 # Production Stage
 # =============================================================================
-FROM node:16-alpine
+FROM node:18-alpine
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
-
-# Install ONLY production dependencies
-RUN npm install --production && \
-    npm cache clean --force
-
 # Copy built files from builder stage
 COPY --from=builder /build/build ./build
+
+# Change to build directory and install production dependencies
+WORKDIR /app/build
+RUN npm install --production && \
+    npm cache clean --force
 
 # Set environment
 ENV NODE_ENV=production
@@ -47,5 +45,5 @@ USER node
 HEALTHCHECK --interval=30s --timeout=3s --start-period=40s \
   CMD node -e "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
-# Start server
-CMD ["node", "build/server.js"]
+# Start server (running from /app/build directory)
+CMD ["node", "server.js"]

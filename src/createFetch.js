@@ -153,7 +153,8 @@ export function createFetch(fetch, config = {}) {
 
     if (!response.ok) {
       throw new FetchError(
-        data?.message || `HTTP ${response.status}: ${response.statusText}`,
+        (data && data.message) ||
+          `HTTP ${response.status}: ${response.statusText}`,
         response.status,
         response.statusText,
         url,

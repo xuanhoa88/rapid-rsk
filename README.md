@@ -39,7 +39,7 @@ cd react-starter-kit
 npm install
 
 # Copy environment variables
-cp .env.example .env
+cp .env.defaults .env
 
 # Start development server
 npm start
@@ -140,13 +140,13 @@ react-starter-kit/
 │   ├── tasks/           # Build tasks
 │   └── webpack/         # Webpack configurations
 ├── docs/                # Documentation
-├── .env.example         # Environment variables template
+├── .env.defaults        # Environment variables template
 └── package.json         # Dependencies and scripts
 ```
 
 ## 🔧 Configuration
 
-The application is configured via environment variables. Copy `.env.example` to `.env` and customize:
+The application is configured via environment variables. Copy `.env.defaults` to `.env` and customize:
 
 ```bash
 # Server Configuration
@@ -201,23 +201,33 @@ src/components/Button/
 # 1. Build for production
 npm run build
 
-# 2. Install production dependencies (REQUIRED!)
+# 2. Change to build directory
+cd build
+
+# 3. Install production dependencies (REQUIRED!)
 npm install --production
 
-# 3. Start production server
-node build/server.js
+# 4. Set environment variables and start server
+export NODE_ENV=production
+export RSK_JWT_SECRET=$(openssl rand -base64 32)
+node server.js
 ```
 
-**Important:** The server bundle requires `node_modules/` at runtime. Always run `npm install --production` after building.
+**Important:** Always run the server from the `build/` directory. The server bundle requires `node_modules/` at runtime.
 
-### Docker
+### Docker / Podman
 
 ```bash
-# Build Docker image
+# Build image
 docker build -t react-starter-kit .
+# or: podman build -t react-starter-kit .
 
 # Run container
-docker run -p 3000:3000 react-starter-kit
+docker run -p 3000:3000 \
+  -e NODE_ENV=production \
+  -e RSK_JWT_SECRET=your-secret \
+  react-starter-kit
+# or: podman run -p 3000:3000 -e NODE_ENV=production -e RSK_JWT_SECRET=your-secret react-starter-kit
 ```
 
 ### Environment-Specific Builds

@@ -29,7 +29,9 @@ function determineLogLevel() {
   if (process.argv.includes('--debug')) return 'debug';
 
   // Check environment variables
-  const envLevel = process.env.LOG_LEVEL?.toLowerCase();
+  const envLevel = process.env.LOG_LEVEL
+    ? process.env.LOG_LEVEL.toLowerCase()
+    : undefined;
   if (envLevel && LOG_LEVELS[envLevel] !== undefined) {
     return envLevel;
   }

@@ -87,7 +87,7 @@ and refresh all the connected browsers.
 
 Note that the `npm start` command launches the app in `development` mode, the
 compiled output files are not optimized and minimized in this case. You can use
-`npm run build` and `node build/server.js` command launches the app in `production` mode .
+`npm run build` to create a production build, then `cd build && node server.js` to launch the app in `production` mode.
 
 _NOTE: double dashes are required_
 

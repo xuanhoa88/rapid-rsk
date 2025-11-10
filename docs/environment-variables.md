@@ -9,15 +9,17 @@ React Starter Kit uses environment variables for configuration. This guide expla
 ### Development & Build
 
 **Uses `.env` file:**
+
 ```javascript
-// tools/tasks/build.js and start.js
-require('dotenv').config();  // Loads .env file
+// tools/run.js
+require('dotenv').config({ override: true }); // Loads .env file
 ```
 
 **Setup:**
+
 ```bash
 # Copy example file
-cp .env.example .env
+cp .env.defaults .env
 
 # Edit values
 nano .env
@@ -30,6 +32,7 @@ npm run build  # Loads .env automatically
 ### Production
 
 **Uses server environment variables:**
+
 ```bash
 # Set directly on server (no .env file)
 export NODE_ENV=production
@@ -46,16 +49,16 @@ node build/server.js
 
 Used during `npm run build`:
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `NODE_ENV` | `development` | Environment mode |
-| `BUNDLE_ANALYZE` | `false` | Enable bundle analyzer |
-| `BUNDLE_MINIFICATION` | `true` | Enable minification |
-| `BUNDLE_TREE_SHAKING` | `true` | Enable tree shaking |
-| `BUNDLE_SPLIT_CHUNKS` | `true` | Enable code splitting |
-| `BUNDLE_MAX_CHUNK_SIZE` | `1000000` | Max chunk size (1MB) |
-| `WEBPACK_MODULE_CONCATENATION` | `true` | Enable scope hoisting |
-| `WEBPACK_SIDE_EFFECTS` | `true` | Respect sideEffects |
+| Variable                       | Default       | Description            |
+| ------------------------------ | ------------- | ---------------------- |
+| `NODE_ENV`                     | `development` | Environment mode       |
+| `BUNDLE_ANALYZE`               | `false`       | Enable bundle analyzer |
+| `BUNDLE_MINIFICATION`          | `true`        | Enable minification    |
+| `BUNDLE_TREE_SHAKING`          | `true`        | Enable tree shaking    |
+| `BUNDLE_SPLIT_CHUNKS`          | `true`        | Enable code splitting  |
+| `BUNDLE_MAX_CHUNK_SIZE`        | `1000000`     | Max chunk size (1MB)   |
+| `WEBPACK_MODULE_CONCATENATION` | `true`        | Enable scope hoisting  |
+| `WEBPACK_SIDE_EFFECTS`         | `true`        | Respect sideEffects    |
 
 ### 2. Runtime Variables
 
@@ -63,45 +66,46 @@ Used when running the server:
 
 #### Server Configuration
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `NODE_ENV` | `development` | Environment mode |
-| `RSK_PORT` | `3000` | Server port |
-| `RSK_HOST` | `localhost` | Server host |
-| `RSK_HTTPS` | `false` | Enable HTTPS (dev) |
-| `RSK_TRUST_PROXY` | `loopback` | Trust proxy setting |
+| Variable          | Default       | Description         |
+| ----------------- | ------------- | ------------------- |
+| `NODE_ENV`        | `development` | Environment mode    |
+| `RSK_PORT`        | `3000`        | Server port         |
+| `RSK_HOST`        | `localhost`   | Server host         |
+| `RSK_HTTPS`       | `false`       | Enable HTTPS (dev)  |
+| `RSK_TRUST_PROXY` | `loopback`    | Trust proxy setting |
 
 #### API Configuration
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `RSK_API_BASE_URL` | `''` | Browser API base URL |
-| `RSK_API_PROXY_URL` | `''` | External API proxy URL |
+| Variable            | Default | Description            |
+| ------------------- | ------- | ---------------------- |
+| `RSK_API_BASE_URL`  | `''`    | Browser API base URL   |
+| `RSK_API_PROXY_URL` | `''`    | External API proxy URL |
 
 #### Security
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `RSK_JWT_SECRET` | *required* | JWT signing secret |
-| `RSK_JWT_EXPIRES_IN` | `7d` | JWT expiration |
+| Variable             | Default    | Description        |
+| -------------------- | ---------- | ------------------ |
+| `RSK_JWT_SECRET`     | _required_ | JWT signing secret |
+| `RSK_JWT_EXPIRES_IN` | `7d`       | JWT expiration     |
 
 #### Database
 
-| Variable | Default | Description |
-|----------|---------|-------------|
+| Variable           | Default                  | Description         |
+| ------------------ | ------------------------ | ------------------- |
 | `RSK_DATABASE_URL` | `sqlite:database.sqlite` | Database connection |
 
 #### i18n
 
-| Variable | Default | Description |
-|----------|---------|-------------|
+| Variable         | Default | Description       |
+| ---------------- | ------- | ----------------- |
 | `RSK_I18N_DEBUG` | `false` | Enable i18n debug |
 
-## RSK_ Prefix
+## RSK\_ Prefix
 
-### Why RSK_?
+### Why RSK\_?
 
 All application-specific variables use `RSK_` prefix for:
+
 - **Namespace isolation** - Avoid conflicts with system vars
 - **Security** - Only `RSK_` vars are injected into bundles
 - **Clarity** - Easy to identify app-specific vars
@@ -117,7 +121,7 @@ export function createDotenvDefinitions({ prefix = 'RSK_' }) {
       acc[`process.env.${key}`] = JSON.stringify(process.env[key]);
       return acc;
     }, {});
-  
+
   return envVars;
 }
 ```
@@ -136,14 +140,13 @@ const isDebug = process.env.RSK_I18N_DEBUG === 'true';
 ### 1. Copy Example File
 
 ```bash
-cp .env.example .env
+cp .env.defaults .env
 ```
 
 ### 2. Edit Values
 
 ```bash
 # .env
-NODE_ENV=development
 RSK_PORT=3000
 RSK_HOST=localhost
 RSK_JWT_SECRET=dev-secret-change-in-production
@@ -161,6 +164,7 @@ npm start  # Automatically loads .env
 ### ❌ DON'T
 
 **Don't deploy .env file:**
+
 ```bash
 # BAD - Don't do this!
 rsync .env server:/app/
@@ -168,6 +172,7 @@ docker build --build-arg .env=.env .
 ```
 
 **Why?**
+
 - Security risk (secrets in file)
 - Not portable (hardcoded values)
 - Hard to update (need redeployment)
@@ -206,27 +211,31 @@ ExecStart=/usr/bin/node /app/build/server.js
 ```javascript
 // ecosystem.config.js
 module.exports = {
-  apps: [{
-    name: 'my-app',
-    script: 'build/server.js',
-    env_production: {
-      NODE_ENV: 'production',
-      RSK_PORT: 3000,
-      RSK_JWT_SECRET: process.env.JWT_SECRET,
-    }
-  }]
+  apps: [
+    {
+      name: 'my-app',
+      script: 'build/server.js',
+      env_production: {
+        NODE_ENV: 'production',
+        RSK_PORT: 3000,
+        RSK_JWT_SECRET: process.env.JWT_SECRET,
+      },
+    },
+  ],
 };
 ```
 
 #### Docker
 
 **Dockerfile:**
+
 ```dockerfile
 ENV NODE_ENV=production
 ENV RSK_PORT=3000
 ```
 
 **docker-compose.yml:**
+
 ```yaml
 services:
   app:
@@ -235,10 +244,11 @@ services:
       - RSK_PORT=3000
       - RSK_JWT_SECRET=${JWT_SECRET}
     env_file:
-      - .env.production  # Optional
+      - .env.production # Optional
 ```
 
 **Run command:**
+
 ```bash
 docker run -p 3000:3000 \
   -e NODE_ENV=production \
@@ -255,8 +265,8 @@ kind: ConfigMap
 metadata:
   name: app-config
 data:
-  NODE_ENV: "production"
-  RSK_PORT: "3000"
+  NODE_ENV: 'production'
+  RSK_PORT: '3000'
 ---
 apiVersion: v1
 kind: Secret
@@ -264,7 +274,7 @@ metadata:
   name: app-secrets
 type: Opaque
 stringData:
-  RSK_JWT_SECRET: "prod-secret"
+  RSK_JWT_SECRET: 'prod-secret'
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -272,12 +282,12 @@ spec:
   template:
     spec:
       containers:
-      - name: app
-        envFrom:
-        - configMapRef:
-            name: app-config
-        - secretRef:
-            name: app-secrets
+        - name: app
+          envFrom:
+            - configMapRef:
+                name: app-config
+            - secretRef:
+                name: app-secrets
 ```
 
 ## Security Best Practices
@@ -314,6 +324,7 @@ pm2 restart my-app
 ### 4. Use Secret Management
 
 **AWS Secrets Manager:**
+
 ```bash
 # Fetch secret at runtime
 export RSK_JWT_SECRET=$(aws secretsmanager get-secret-value \
@@ -323,6 +334,7 @@ export RSK_JWT_SECRET=$(aws secretsmanager get-secret-value \
 ```
 
 **HashiCorp Vault:**
+
 ```bash
 # Fetch secret
 export RSK_JWT_SECRET=$(vault kv get -field=value secret/jwt)
@@ -335,6 +347,7 @@ export RSK_JWT_SECRET=$(vault kv get -field=value secret/jwt)
 **Problem:** Environment variables not available
 
 **Check:**
+
 ```bash
 # 1. Verify .env file exists
 ls -la .env
@@ -351,6 +364,7 @@ echo $RSK_PORT
 **Problem:** `process.env.RSK_*` is undefined
 
 **Check:**
+
 ```bash
 # 1. Verify RSK_ prefix
 echo $RSK_API_URL  # ✅ Good
@@ -368,6 +382,7 @@ npm run build
 **Problem:** Variables work in dev but not production
 
 **Solution:**
+
 ```bash
 # Don't rely on .env in production
 # Set variables directly:
@@ -388,7 +403,6 @@ env | grep RSK_
 # ==============================================================================
 
 # Server
-NODE_ENV=development
 RSK_PORT=3000
 RSK_HOST=localhost
 RSK_HTTPS=false
@@ -429,16 +443,19 @@ export RSK_API_BASE_URL=https://api.example.com
 ## Summary
 
 ### Development
+
 - ✅ Use `.env` file
-- ✅ Copy from `.env.example`
+- ✅ Copy from `.env.defaults`
 - ✅ Loaded automatically by `dotenv`
 
 ### Production
+
 - ❌ Don't use `.env` file
 - ✅ Set environment variables on server
 - ✅ Use secret management tools
 
 ### All Environments
+
 - ✅ Use `RSK_` prefix for app variables
 - ✅ Never commit secrets to git
 - ✅ Rotate secrets regularly

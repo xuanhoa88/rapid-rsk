@@ -221,13 +221,15 @@ function restoreScrollPosition(location) {
  */
 function handleNavigationError(error, isInitialRender, location) {
   if (__DEV__) {
-    performanceMetrics?.errors.push({
-      timestamp: Date.now(),
-      error: error.message,
-      stack: error.stack,
-      location: location.pathname,
-      isInitialRender,
-    });
+    if (performanceMetrics && performanceMetrics.errors) {
+      performanceMetrics.errors.push({
+        timestamp: Date.now(),
+        error: error.message,
+        stack: error.stack,
+        location: location.pathname,
+        isInitialRender,
+      });
+    }
     console.error('Navigation error:', error);
     throw error;
   }
@@ -279,11 +281,13 @@ async function onLocationChange(location, action) {
           onRecoverableError: error => {
             if (__DEV__) {
               console.error('Hydration error:', error);
-              performanceMetrics?.errors.push({
-                type: 'hydration',
-                error,
-                timestamp: Date.now(),
-              });
+              if (performanceMetrics && performanceMetrics.errors) {
+                performanceMetrics.errors.push({
+                  type: 'hydration',
+                  error,
+                  timestamp: Date.now(),
+                });
+              }
             }
           },
         });

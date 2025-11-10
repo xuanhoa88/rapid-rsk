@@ -32,11 +32,13 @@ react-starter-kit/
 ## Tech Stack
 
 ### Core
+
 - **Runtime:** Node.js >= 16.0.0
 - **Package Manager:** npm >= 7.0.0
 - **Language:** JavaScript (ES2015+) with JSX
 
 ### Frontend
+
 - **React:** 16+ (supports React 16, 17, and 18+ with backward compatibility)
 - **State Management:** Redux 7.2.9 with React Redux hooks
 - **Routing:** Universal router with code splitting
@@ -44,24 +46,28 @@ react-starter-kit/
 - **i18n:** react-i18next 14.1.3 with i18next 23.15.2
 
 ### Backend
+
 - **Server:** Express 4.21.1 (Node.js 16+ compatible)
 - **Authentication:** JWT (jsonwebtoken 9.0.2 + express-jwt 8.4.1)
 - **Database:** Sequelize 6.37.5 ORM (supports PostgreSQL, MySQL, SQLite)
 - **Middleware:** body-parser 1.20.3, cookie-parser 1.4.7, express-request-language 1.1.15
 
 ### Build Tools
+
 - **Bundler:** Webpack 5 with code splitting and tree shaking
 - **Transpiler:** Babel 7 with preset-env and preset-react
 - **CSS Processing:** PostCSS with autoprefixer and CSS Modules
 - **HMR:** React Refresh + webpack-hot-middleware
 
 ### Code Quality
+
 - **Linting:** ESLint with @babel/eslint-parser
 - **CSS Linting:** Stylelint
 - **Formatting:** Prettier 2.8.8
 - **Testing:** Jest with React Testing Library
 
 ### DevOps
+
 - **Docker:** Production-ready Dockerfile
 - **Process Management:** PM2 support
 - **Logging:** Centralized logger with hierarchical levels
@@ -97,27 +103,32 @@ npm run i18n                   # Extract i18n messages
 ## Architecture Patterns
 
 ### 1. Universal Rendering (SSR)
+
 - Server renders initial HTML for fast page loads and SEO
 - Client hydrates and takes over for SPA experience
 - Shared code between client and server
 - Critical CSS extraction for above-the-fold content
 
 ### 2. Code Splitting
+
 - Route-based code splitting with dynamic imports
 - Webpack chunks for optimal bundle sizes
 - Automatic chunk loading on navigation
 
 ### 3. State Management
+
 - Redux for global state (user, intl)
 - React Context for app-level context (insertCss, fetch, pathname)
 - Custom hooks (useAppContext) for accessing context
 
 ### 4. Authentication
+
 - JWT-based authentication with HTTP-only cookies
 - Express middleware for protected routes
 - Auth endpoints: /auth/register, /auth/login, /auth/logout, /auth/me
 
 ### 5. Build System
+
 - Centralized configuration in tools/config.js
 - Task-based architecture (build, start, clean, i18n)
 - Metadata-driven task runner (keepAlive for long-running tasks)
@@ -126,6 +137,7 @@ npm run i18n                   # Extract i18n messages
 ## Code Conventions
 
 ### 1. Component Patterns
+
 ```javascript
 // Prefer functional components with hooks
 import React, { useState, useEffect } from 'react';
@@ -135,12 +147,16 @@ import { useAppContext } from '../hooks/useAppContext';
 function MyComponent({ title }) {
   const { fetch, pathname } = useAppContext();
   const [data, setData] = useState(null);
-  
+
   useEffect(() => {
     fetch('/api/data').then(setData);
   }, [fetch]);
-  
-  return <div>{title}: {data?.value}</div>;
+
+  return (
+    <div>
+      {title}: {data?.value}
+    </div>
+  );
 }
 
 MyComponent.propTypes = {
@@ -151,6 +167,7 @@ export default MyComponent;
 ```
 
 ### 2. Redux Integration
+
 ```javascript
 // Use hooks for Redux
 import { useSelector, useDispatch } from 'react-redux';
@@ -158,16 +175,17 @@ import { useSelector, useDispatch } from 'react-redux';
 function MyComponent() {
   const user = useSelector(state => state.user);
   const dispatch = useDispatch();
-  
+
   const handleLogin = () => {
     dispatch({ type: 'SET_USER', payload: userData });
   };
-  
+
   return <div>{user?.name}</div>;
 }
 ```
 
 ### 3. Styling with CSS Modules
+
 ```javascript
 import React, { useEffect } from 'react';
 import { useAppContext } from '../hooks/useAppContext';
@@ -175,27 +193,28 @@ import s from './MyComponent.css';
 
 function MyComponent() {
   const { insertCss } = useAppContext();
-  
+
   useEffect(() => {
     const removeCss = insertCss(s);
     return () => removeCss();
   }, [insertCss]);
-  
+
   return <div className={s.container}>Content</div>;
 }
 ```
 
 ### 4. Routing
+
 ```javascript
 // Route definition in src/routes/
 export default {
   path: '/example',
   title: 'Example Page',
   description: 'Example page description',
-  
+
   async action({ fetch, params, query }) {
     const data = await fetch('/api/example');
-    
+
     return {
       title: 'Example Page',
       component: <ExamplePage data={data} />,
@@ -205,6 +224,7 @@ export default {
 ```
 
 ### 5. Error Handling
+
 ```javascript
 // Use BuildError for rich error context
 import { BuildError } from './lib/errorHandler';
@@ -212,11 +232,10 @@ import { BuildError } from './lib/errorHandler';
 try {
   await someOperation();
 } catch (error) {
-  throw new BuildError(
-    'Operation failed',
-    'OPERATION_ERROR',
-    { originalError: error, context: 'additional info' },
-  );
+  throw new BuildError('Operation failed', 'OPERATION_ERROR', {
+    originalError: error,
+    context: 'additional info',
+  });
 }
 ```
 
@@ -248,7 +267,7 @@ Refer to these docs for detailed information:
 
 ## Environment Variables
 
-Key environment variables (see .env.example):
+Key environment variables (see .env.defaults):
 
 ```bash
 # Server
@@ -287,8 +306,17 @@ LOG_LEVEL=info
 # Build for production
 npm run build
 
+# Change to build directory and install dependencies
+cd build
+npm install --production
+
 # Start with PM2
-pm2 start build/server.js --name react-app
+pm2 start server.js --name react-app
+
+# Or run directly
+export NODE_ENV=production
+export RSK_JWT_SECRET=$(openssl rand -base64 32)
+node server.js
 
 # Or use Docker
 docker build -t react-app .
