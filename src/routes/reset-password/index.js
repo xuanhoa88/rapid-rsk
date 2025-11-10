@@ -6,16 +6,30 @@
  */
 
 import Layout from '../../components/Layout';
+import { isAuthenticated } from '../../redux';
 import ResetPassword from './ResetPassword';
 
-function action({ fetch }) {
+/**
+ * Reset Password route
+ * Redirects authenticated users to home page
+ */
+function action(context) {
   const title = 'Reset Password';
+
+  // Get state from Redux store
+  const state = context.store.getState();
+
+  // Redirect authenticated users to home
+  if (isAuthenticated(state)) {
+    return { redirect: '/' };
+  }
+
   return {
     chunks: ['reset-password'],
     title,
     component: (
       <Layout>
-        <ResetPassword title={title} fetch={fetch} />
+        <ResetPassword title={title} />
       </Layout>
     ),
   };

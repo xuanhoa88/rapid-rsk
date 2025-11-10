@@ -127,14 +127,11 @@ npm run i18n           # Extract i18n messages
 react-starter-kit/
 ├── public/              # Static assets
 ├── src/
-│   ├── actions/         # Redux actions
 │   ├── api/             # API routes and database models
 │   ├── components/      # Reusable React components
-│   ├── constants/       # Application constants
 │   ├── i18n/            # Internationalization setup
-│   ├── reducers/        # Redux reducers
+│   ├── redux/           # Redux (actions, reducers, store, constants)
 │   ├── routes/          # Application routes (pages)
-│   ├── store/           # Redux store configuration
 │   ├── client.js        # Client-side entry point
 │   ├── server.js        # Server-side entry point
 │   └── router.js        # Universal router configuration
@@ -158,8 +155,8 @@ RSK_HOST=localhost               # Development host
 RSK_HTTPS=false                  # Enable HTTPS
 
 # API Configuration
-RSK_API_CLIENT_URL=              # Client-side API URL
-RSK_API_SERVER_URL=              # External API proxy (optional)
+RSK_API_BASE_URL=                # Browser API base URL
+RSK_API_PROXY_URL=               # External API proxy (optional)
 
 # Database
 RSK_DATABASE_URL=sqlite:database.sqlite  # Database connection

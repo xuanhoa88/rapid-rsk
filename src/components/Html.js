@@ -81,7 +81,7 @@ LoadableStateScripts.propTypes = {
  * @param {Array} [props.styleLinks=[]] - CSS file URLs
  * @param {Array} [props.scripts=[]] - JavaScript file URLs
  * @param {Object} [props.loadableState] - Loadable component state for SSR
- * @param {Object} props.appState - Application state and configuration (apiUrl, state, lang)
+ * @param {Object} props.appState - Application state and configuration (apiUrl, reduxState)
  * @param {string} props.children - Rendered React app HTML
  */
 function Html({
@@ -98,7 +98,12 @@ function Html({
   children,
 }) {
   return (
-    <html className='no-js' lang={appState.lang}>
+    <html
+      className='no-js'
+      lang={
+        (appState.reduxState.intl && appState.reduxState.intl.locale) || 'en-US'
+      }
+    >
       <head>
         {/* Basic meta tags */}
         <meta charSet='utf-8' />
@@ -187,8 +192,7 @@ Html.propTypes = {
   }),
   appState: PropTypes.shape({
     apiUrl: PropTypes.string.isRequired,
-    state: PropTypes.object.isRequired,
-    lang: PropTypes.string.isRequired,
+    reduxState: PropTypes.object.isRequired, // Redux store state (includes runtime.appName, runtime.appDescription)
   }).isRequired,
   children: PropTypes.string.isRequired,
 };

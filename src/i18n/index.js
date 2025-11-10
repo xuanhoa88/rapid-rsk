@@ -25,29 +25,12 @@ const locales = Object.freeze({
 // LOCALE UTILITIES (Cached for Performance)
 // =============================================================================
 
-const cachedAvailableLocales = Object.freeze(
+export const AVAILABLE_LOCALES = Object.freeze(
   Object.keys(locales).reduce((acc, key) => {
     acc[key] = Object.freeze({ name: locales[key].name });
     return acc;
   }, {}),
 );
-
-/**
- * Get available locales (without translations)
- * @returns {Object} Frozen object with locale metadata
- */
-export function getAvailableLocales() {
-  return cachedAvailableLocales;
-}
-
-/**
- * Check if locale is supported
- * @param {string} locale - Locale code
- * @returns {boolean}
- */
-export function isLocaleSupported(locale) {
-  return locale in locales;
-}
 
 // =============================================================================
 // I18NEXT CONFIGURATION
@@ -89,15 +72,6 @@ i18nInstance.use(initReactI18next).init(i18nConfig);
  */
 export function getI18nInstance() {
   return i18nInstance;
-}
-
-/**
- * Change language
- * @param {string} locale - Locale code (e.g., 'en-US', 'cs-CZ')
- * @returns {Promise<string>}
- */
-export async function changeLanguage(locale) {
-  return i18nInstance.changeLanguage(locale);
 }
 
 // =============================================================================

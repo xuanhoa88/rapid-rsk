@@ -7,6 +7,7 @@ React Starter Kit comes with Redux pre-integrated and configured. This guide sho
 ## Current Redux Setup
 
 The application uses:
+
 - **Redux** 4.2.1 - State management
 - **React Redux** 7.2.9 - React bindings with Hooks support
 - **Redux Thunk** 2.4.2 - Async action middleware
@@ -16,9 +17,11 @@ The application uses:
 
 ```javascript
 {
-  runtime: {      // Runtime configuration
-    availableLocales: {},
-    initialNow: Date,
+  runtime: {      // Runtime variables (set via setRuntimeVariable)
+    initialNow: Date,      // Timestamp for SSR consistency
+    appLocales: {},        // Available locales for language switcher
+    appName: String,       // Application name
+    appDescription: String, // Application description
   },
   intl: {         // Internationalization
     locale: 'en-US',
@@ -37,10 +40,10 @@ The application uses:
 
 ### 1. Define Action Constants
 
-Add your action types to `src/constants/index.js`:
+Add your action types to your feature's constants file `src/redux/features/posts/constants.js`:
 
 ```javascript
-// src/constants/index.js
+// src/redux/features/posts/constants.js
 
 // Existing constants
 export const SET_RUNTIME_VARIABLE = 'SET_RUNTIME_VARIABLE';
@@ -56,10 +59,10 @@ export const FETCH_POSTS_ERROR = 'FETCH_POSTS_ERROR';
 
 ### 2. Create Action Creators
 
-Create a new file in `src/actions/` (e.g., `src/actions/posts.js`):
+Create a new file in `src/redux/features/posts/` (e.g., `src/redux/features/posts/actions.js`):
 
 ```javascript
-// src/actions/posts.js
+// src/redux/features/posts/actions.js
 
 import {
   FETCH_POSTS_START,
@@ -145,10 +148,10 @@ export function myAction() {
 
 ### 1. Create a Reducer File
 
-Create a new file in `src/reducers/` (e.g., `src/reducers/posts.js`):
+Create a new file in `src/redux/features/posts/` (e.g., `src/redux/features/posts/reducer.js`):
 
 ```javascript
-// src/reducers/posts.js
+// src/redux/features/posts/reducer.js
 
 import {
   FETCH_POSTS_START,
@@ -202,18 +205,44 @@ export default function posts(state = initialState, action) {
 }
 ```
 
-### 2. Add Reducer to Root Reducer
+### 2. Create Feature Public API
 
-Edit `src/reducers/index.js`:
+Create `src/redux/features/posts/index.js` to export the feature's public API:
 
 ```javascript
-// src/reducers/index.js
+// src/redux/features/posts/index.js
+
+// Public API - Actions
+export { fetchPosts, clearPosts } from './actions';
+
+// Public API - Constants (for testing/external use)
+export {
+  FETCH_POSTS_START,
+  FETCH_POSTS_SUCCESS,
+  FETCH_POSTS_ERROR,
+  CLEAR_POSTS,
+} from './constants';
+
+// Public API - Selectors
+export { getPosts, getPostById, isLoading, getError } from './reducer';
+
+// Public API - Reducer (default export for rootReducer)
+export { default } from './reducer';
+export { default as postsReducer } from './reducer';
+```
+
+### 3. Add Reducer to Root Reducer
+
+Edit `src/redux/rootReducer.js`:
+
+```javascript
+// src/redux/rootReducer.js
 
 import { combineReducers } from 'redux';
-import user from './user';
-import runtime from './runtime';
-import intl from './intl';
-import posts from './posts'; // Import your reducer
+import user from './features/user';
+import runtime from './features/runtime';
+import intl from './features/intl';
+import posts from './features/posts'; // Import your feature
 
 export default combineReducers({
   user,
@@ -223,15 +252,37 @@ export default combineReducers({
 });
 ```
 
+### 4. Export from Main Redux Module
+
+Edit `src/redux/index.js` to export your feature:
+
+```javascript
+// src/redux/index.js
+
+// ... existing exports
+
+// Feature: Posts
+export {
+  fetchPosts,
+  clearPosts,
+  FETCH_POSTS_START,
+  FETCH_POSTS_SUCCESS,
+  FETCH_POSTS_ERROR,
+  CLEAR_POSTS,
+} from './features/posts';
+```
+
 ### Reducer Best Practices
 
 ✅ **DO:**
+
 - Always return state (even if unchanged)
 - Use spread operator for immutable updates: `{ ...state, key: value }`
 - Keep reducers pure (no side effects)
 - Handle all action types with default case
 
 ❌ **DON'T:**
+
 - Mutate state directly: `state.key = value` ❌
 - Call APIs in reducers (do it in actions)
 - Generate random values in reducers (pass via action payload)
@@ -277,7 +328,7 @@ import { fetchPosts, clearPosts } from '../../actions/posts';
 
 function PostsList() {
   const dispatch = useDispatch();
-  
+
   // Select data from store
   const posts = useSelector(state => state.posts.items);
   const loading = useSelector(state => state.posts.loading);
@@ -286,7 +337,7 @@ function PostsList() {
   // Fetch posts on mount
   useEffect(() => {
     dispatch(fetchPosts());
-    
+
     // Cleanup on unmount
     return () => {
       dispatch(clearPosts());
@@ -327,12 +378,11 @@ import { setLocale } from '../../actions/intl';
 
 function LanguageSwitcher() {
   const dispatch = useDispatch();
-  
+
   // Select data from store
   const currentLocale = useSelector(state => state.intl.locale);
-  const availableLocales = useSelector(
-    state => state.runtime.availableLocales || {}
-  );
+  // Get appLocales from runtime variables
+  const appLocales = useSelector(state => state.runtime.appLocales || {});
 
   // Memoized callback
   const handleLocaleChange = useCallback(
@@ -340,19 +390,19 @@ function LanguageSwitcher() {
       e.preventDefault();
       dispatch(setLocale(locale));
     },
-    [dispatch]
+    [dispatch],
   );
 
   return (
     <div>
-      {Object.keys(availableLocales).map(locale => (
+      {Object.keys(appLocales).map(locale => (
         <a
           key={locale}
           href={`?lang=${locale}`}
           onClick={e => handleLocaleChange(locale, e)}
           className={locale === currentLocale ? 'active' : ''}
         >
-          {availableLocales[locale]}
+          {appLocales[locale]}
         </a>
       ))}
     </div>
@@ -378,9 +428,9 @@ class PostsList extends React.Component {
 
   render() {
     const { posts, loading } = this.props;
-    
+
     if (loading) return <div>Loading...</div>;
-    
+
     return (
       <ul>
         {posts.map(post => (
@@ -420,9 +470,7 @@ export default connect(mapStateToProps, mapDispatchToProps)(PostsList);
 See `src/server.js` for the complete implementation:
 
 ```javascript
-import configureStore from './store/configureStore';
-import { setRuntimeVariable } from './actions/runtime';
-import { setLocale } from './actions/intl';
+import { configureStore, setRuntimeVariable, setLocale } from './redux';
 import * as navigator from './navigator';
 
 // Create store for each request
@@ -431,15 +479,15 @@ const store = configureStore(
   {
     fetch: createFetch(nodeFetch, { baseUrl: config.api.serverUrl }),
     navigator, // Navigator methods are server-safe (become no-ops)
-  }
+  },
 );
 
-// Dispatch server-side actions
+// Dispatch runtime variables
 await store.dispatch(
   setRuntimeVariable({
-    name: 'availableLocales',
-    value: getAvailableLocales(),
-  })
+    name: 'appLocales', // Runtime variable for language switcher
+    value: AVAILABLE_LOCALES,
+  }),
 );
 
 await store.dispatch(setLocale(req.language));
@@ -447,9 +495,7 @@ await store.dispatch(setLocale(req.language));
 // Render with store
 const app = (
   <Provider store={store}>
-    <App context={context}>
-      {route.component}
-    </App>
+    <App context={context}>{route.component}</App>
   </Provider>
 );
 
@@ -471,11 +517,11 @@ const data = {
 
 export default {
   path: '/posts',
-  
+
   async action({ store, fetch }) {
     // Dispatch action on server
     await store.dispatch(fetchPosts());
-    
+
     return {
       title: 'Posts',
       component: <PostsPage />,
@@ -491,8 +537,7 @@ export default {
 ```javascript
 import configureMockStore from 'redux-mock-store';
 import thunk from 'redux-thunk';
-import { fetchPosts } from '../posts';
-import { FETCH_POSTS_START, FETCH_POSTS_SUCCESS } from '../../constants';
+import { fetchPosts, FETCH_POSTS_START, FETCH_POSTS_SUCCESS } from '../../redux/features/posts';
 
 const middlewares = [thunk.withExtraArgument({ fetch: mockFetch })];
 const mockStore = configureMockStore(middlewares);
@@ -501,14 +546,14 @@ const mockFetch = jest.fn();
 describe('posts actions', () => {
   it('dispatches FETCH_POSTS_SUCCESS on successful fetch', async () => {
     const posts = [{ id: 1, title: 'Test Post' }];
-    
+
     mockFetch.mockResolvedValue({
       json: async () => posts,
     });
 
     const store = mockStore({ posts: { items: [] } });
     await store.dispatch(fetchPosts());
-    
+
     const actions = store.getActions();
     expect(actions[0].type).toBe(FETCH_POSTS_START);
     expect(actions[1].type).toBe(FETCH_POSTS_SUCCESS);
@@ -520,18 +565,17 @@ describe('posts actions', () => {
 ### Testing Reducers
 
 ```javascript
-import posts from '../posts';
-import { FETCH_POSTS_SUCCESS } from '../../constants';
+import posts, { FETCH_POSTS_SUCCESS } from '../../redux/features/posts/reducer';
 
 describe('posts reducer', () => {
   it('handles FETCH_POSTS_SUCCESS', () => {
     const testPosts = [{ id: 1, title: 'Test' }];
-    
+
     const state = posts(undefined, {
       type: FETCH_POSTS_SUCCESS,
       payload: { posts: testPosts },
     });
-    
+
     expect(state.items).toEqual(testPosts);
     expect(state.loading).toBe(false);
   });
@@ -551,10 +595,10 @@ describe('posts reducer', () => {
 
 ```javascript
 const handleClick = useCallback(
-  (id) => {
+  id => {
     dispatch(deletePost(id));
   },
-  [dispatch]
+  [dispatch],
 );
 ```
 
@@ -580,9 +624,9 @@ const handleClick = useCallback(
 ### 4. Create Reusable Selectors
 
 ```javascript
-// src/reducers/posts.js
+// src/redux/features/posts/reducer.js
 export const getPosts = state => state.posts.items;
-export const getPostById = (state, id) => 
+export const getPostById = (state, id) =>
   state.posts.items.find(p => p.id === id);
 
 // Usage

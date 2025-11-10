@@ -6,10 +6,13 @@
  */
 
 import PropTypes from 'prop-types';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
+import { useDispatch } from 'react-redux';
+import { register } from '../../redux';
 import s from './Register.css';
 
-function Register({ title, fetch }) {
+function Register({ title }) {
+  const dispatch = useDispatch();
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -17,55 +20,46 @@ function Register({ title, fetch }) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async e => {
-    e.preventDefault();
-    setError('');
+  const handleSubmit = useCallback(
+    async e => {
+      e.preventDefault();
+      setError('');
 
-    // Validation
-    if (!displayName.trim()) {
-      setError('Display name is required');
-      return;
-    }
+      // Validation
+      if (!displayName.trim()) {
+        setError('Display name is required');
+        return;
+      }
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters long');
-      return;
-    }
+      if (password.length < 6) {
+        setError('Password must be at least 6 characters long');
+        return;
+      }
 
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
+      if (password !== confirmPassword) {
+        setError('Passwords do not match');
+        return;
+      }
 
-    setLoading(true);
+      setLoading(true);
 
-    try {
-      const response = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      const result = await dispatch(
+        register({
           displayName: displayName.trim(),
           email,
           password,
         }),
-      });
+      );
 
-      const data = await response.json();
-
-      if (response.ok) {
-        // Redirect to home page on success
-        window.location.href = '/';
-      } else {
-        setError(data.error || 'Registration failed');
-      }
-    } catch (err) {
-      setError('Network error. Please try again.');
-    } finally {
       setLoading(false);
-    }
-  };
+
+      if (!result.success) {
+        setError(result.error);
+      }
+      // On success, Redux action redirects automatically
+    },
+    [displayName, email, password, confirmPassword, dispatch],
+  );
 
   return (
     <div className={s.root}>
@@ -156,7 +150,6 @@ function Register({ title, fetch }) {
 
 Register.propTypes = {
   title: PropTypes.string.isRequired,
-  fetch: PropTypes.func.isRequired,
 };
 
 export default Register;

@@ -5,44 +5,36 @@
  * LICENSE.txt file in the root directory of this source tree.
  */
 
+import { useCallback, useState } from 'react';
+import { useDispatch } from 'react-redux';
 import PropTypes from 'prop-types';
-import { useState } from 'react';
+import { login } from '../../redux';
 import s from './Login.css';
 
-function Login({ title, fetch }) {
+function Login({ title }) {
+  const dispatch = useDispatch();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async e => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
+  const handleSubmit = useCallback(
+    async e => {
+      e.preventDefault();
+      setError('');
+      setLoading(true);
 
-    try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      });
+      const result = await dispatch(login({ email, password }));
 
-      const data = await response.json();
-
-      if (response.ok) {
-        // Redirect to home page on success
-        window.location.href = '/';
-      } else {
-        setError(data.error || 'Authentication failed');
-      }
-    } catch (err) {
-      setError('Network error. Please try again.');
-    } finally {
       setLoading(false);
-    }
-  };
+
+      if (!result.success) {
+        setError(result.error);
+      }
+      // On success, Redux action redirects automatically
+    },
+    [email, password, dispatch],
+  );
 
   return (
     <div className={s.root}>
@@ -108,7 +100,6 @@ function Login({ title, fetch }) {
 
 Login.propTypes = {
   title: PropTypes.string.isRequired,
-  fetch: PropTypes.func.isRequired,
 };
 
 export default Login;

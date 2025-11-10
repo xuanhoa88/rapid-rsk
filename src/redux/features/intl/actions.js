@@ -7,11 +7,10 @@
 
 import {
   SET_LOCALE_ERROR,
+  SET_LOCALE_FALLBACK,
   SET_LOCALE_START,
   SET_LOCALE_SUCCESS,
-} from '../constants';
-import { changeLanguage } from '../i18n';
-import { navigateTo } from '../navigator';
+} from './constants';
 
 // =============================================================================
 // CONSTANTS
@@ -45,11 +44,12 @@ function setLocaleCookie(locale) {
 /**
  * Update URL with locale parameter
  * @param {string} locale - Locale code
+ * @param {Object} navigator - Navigator helper from Redux thunk
  */
-function updateLocaleUrl(locale) {
-  if (!isBrowser()) return;
+function updateLocaleUrl(locale, navigator) {
+  if (!isBrowser() || !navigator) return;
 
-  navigateTo(`?lang=${locale}`);
+  navigator.navigateTo(`?lang=${locale}`);
 }
 
 // =============================================================================
@@ -60,25 +60,62 @@ function updateLocaleUrl(locale) {
  * Set application locale
  *
  * Changes the application language and persists the choice:
- * 1. Dispatches SET_LOCALE_START action
- * 2. Changes i18next language
- * 3. Dispatches SET_LOCALE_SUCCESS action
- * 4. Saves locale to cookie (browser only)
- * 5. Updates URL with locale parameter (browser only)
+ * 1. Validates locale against appLocales runtime variable from Redux store
+ * 2. Falls back to first available locale if invalid
+ * 3. Dispatches SET_LOCALE_START action
+ * 4. Changes i18next language
+ * 5. Dispatches SET_LOCALE_SUCCESS action
+ * 6. Saves locale to cookie (browser only)
+ * 7. Updates URL with locale parameter (browser only)
  *
- * @param {Object} options
- * @param {string} options.locale - Locale code (e.g., 'en-US', 'cs-CZ')
+ * @param {string} locale - Locale code (e.g., 'en-US', 'cs-CZ')
  * @returns {Function} Redux thunk action
  *
  * @example
+ * // Set locale (validates against appLocales runtime variable)
  * dispatch(setLocale('en-US'));
+ *
+ * @example
+ * // Invalid locale falls back to first available
+ * dispatch(setLocale('invalid')); // Falls back to 'en-US' or first available
  */
 export function setLocale(locale) {
-  return async dispatch => {
+  return async (dispatch, getState, { navigator, i18n }) => {
+    // Get available locales from runtime variables in Redux store
+    const state = getState();
+    const appLocales = (state.runtime && state.runtime.appLocales) || {};
+    const appLocaleCodes = Object.keys(appLocales);
+
     // Validate locale parameter
     if (!locale || typeof locale !== 'string') {
-      console.error('Invalid locale:', locale);
+      console.error('Invalid locale (not a string):', locale);
       return null;
+    }
+
+    // Check if locale is available
+    if (appLocaleCodes.length > 0 && !appLocaleCodes.includes(locale)) {
+      const requestedLocale = locale;
+      const fallbackLocale = appLocaleCodes[0] || 'en-US';
+
+      console.warn(
+        `Locale "${requestedLocale}" is not available. Available locales:`,
+        appLocaleCodes,
+      );
+      console.info(`Falling back to locale: ${fallbackLocale}`);
+
+      // Dispatch fallback action for error handling in components
+      dispatch({
+        type: SET_LOCALE_FALLBACK,
+        payload: {
+          requestedLocale,
+          fallbackLocale,
+          appLocaleCodes,
+        },
+      });
+
+      // Use fallback locale
+      // eslint-disable-next-line no-param-reassign
+      locale = fallbackLocale;
     }
 
     // Start locale change
@@ -88,8 +125,8 @@ export function setLocale(locale) {
     });
 
     try {
-      // Change i18next language
-      const newLanguage = await changeLanguage(locale);
+      // Change i18next language using helper
+      const newLanguage = await i18n.changeLanguage(locale);
 
       // Success - update Redux state
       dispatch({
@@ -99,7 +136,7 @@ export function setLocale(locale) {
 
       // Persist locale (browser only)
       setLocaleCookie(locale);
-      updateLocaleUrl(locale);
+      updateLocaleUrl(locale, navigator);
 
       return newLanguage;
     } catch (error) {

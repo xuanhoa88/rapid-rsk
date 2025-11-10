@@ -13,7 +13,6 @@ async function action({ fetch }) {
   const data = await fetch('/api/news');
 
   return {
-    title: 'React Starter Kit',
     chunks: ['home'],
     component: (
       <Layout>

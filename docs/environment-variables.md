@@ -75,8 +75,8 @@ Used when running the server:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `RSK_API_CLIENT_URL` | `''` | API URL for browser |
-| `RSK_API_SERVER_URL` | `''` | External API proxy |
+| `RSK_API_BASE_URL` | `''` | Browser API base URL |
+| `RSK_API_PROXY_URL` | `''` | External API proxy URL |
 
 #### Security
 
@@ -126,7 +126,7 @@ export function createDotenvDefinitions({ prefix = 'RSK_' }) {
 
 ```javascript
 // Available in both client and server code
-const apiUrl = process.env.RSK_API_CLIENT_URL;
+const apiUrl = process.env.RSK_API_BASE_URL;
 const jwtSecret = process.env.RSK_JWT_SECRET;
 const isDebug = process.env.RSK_I18N_DEBUG === 'true';
 ```
@@ -394,8 +394,8 @@ RSK_HOST=localhost
 RSK_HTTPS=false
 
 # API
-RSK_API_CLIENT_URL=
-RSK_API_SERVER_URL=
+RSK_API_BASE_URL=
+RSK_API_PROXY_URL=
 
 # Security
 RSK_JWT_SECRET=dev-secret-change-in-production
@@ -422,8 +422,8 @@ export RSK_PORT=3000
 export RSK_HOST=0.0.0.0
 export RSK_JWT_SECRET=prod-secret-very-long-and-random
 export RSK_DATABASE_URL=postgresql://user:pass@db:5432/prod
-export RSK_API_SERVER_URL=https://api.example.com
-export RSK_API_CLIENT_URL=https://api.example.com
+export RSK_API_PROXY_URL=https://api.example.com
+export RSK_API_BASE_URL=https://api.example.com
 ```
 
 ## Summary

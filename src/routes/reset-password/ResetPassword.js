@@ -6,43 +6,38 @@
  */
 
 import PropTypes from 'prop-types';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
+import { useDispatch } from 'react-redux';
+import { resetPassword } from '../../redux';
 import s from './ResetPassword.css';
 
-function ResetPassword({ title, fetch }) {
+function ResetPassword({ title }) {
+  const dispatch = useDispatch();
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async e => {
-    e.preventDefault();
-    setError('');
-    setSuccess(false);
-    setLoading(true);
+  const handleSubmit = useCallback(
+    async e => {
+      e.preventDefault();
+      setError('');
+      setSuccess(false);
+      setLoading(true);
 
-    try {
-      const response = await fetch('/auth/reset-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email }),
-      });
+      const result = await dispatch(resetPassword({ email }));
 
-      const data = await response.json();
-
-      if (response.ok) {
-        setSuccess(true);
-      } else {
-        setError(data.error || 'Failed to send reset email');
-      }
-    } catch (err) {
-      setError('Network error. Please try again.');
-    } finally {
       setLoading(false);
-    }
-  };
+
+      if (result.success) {
+        setSuccess(true);
+        setEmail(''); // Clear email on success
+      } else {
+        setError(result.error);
+      }
+    },
+    [email, dispatch],
+  );
 
   return (
     <div className={s.root}>
@@ -96,7 +91,6 @@ function ResetPassword({ title, fetch }) {
 
 ResetPassword.propTypes = {
   title: PropTypes.string.isRequired,
-  fetch: PropTypes.func.isRequired,
 };
 
 export default ResetPassword;

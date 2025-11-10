@@ -94,22 +94,27 @@ export default {
 };
 ```
 
-### State Management
+### State Management (Feature-Based Redux)
 
 ```
-src/
-├── actions/             # Redux action creators
-│   ├── intl.js          # Internationalization actions
-│   └── runtime.js       # Runtime configuration actions
-├── reducers/            # Redux reducers
-│   ├── index.js         # Root reducer
-│   ├── intl.js          # Internationalization state
-│   └── runtime.js       # Runtime state
-├── store/               # Redux store configuration
-│   ├── configureStore.js # Store setup
-│   └── createHelpers.js  # Store helpers (fetch, etc.)
-└── constants/           # Action type constants
-    └── index.js
+src/redux/
+├── features/            # Feature modules (self-contained)
+│   ├── intl/            # Internationalization feature
+│   │   ├── index.js     # Public API
+│   │   ├── actions.js   # Intl actions
+│   │   ├── constants.js # Intl action types
+│   │   └── reducer.js   # Intl state reducer
+│   ├── runtime/         # Runtime variables feature
+│   │   ├── index.js     # Public API
+│   │   ├── actions.js   # Runtime actions
+│   │   ├── constants.js # Runtime action types
+│   │   └── reducer.js   # Runtime state reducer
+│   └── user/            # User authentication feature
+│       ├── index.js     # Public API
+│       └── reducer.js   # User state reducer
+├── configureStore.js    # Redux store setup
+├── rootReducer.js       # Combines all feature reducers
+└── index.js             # Main export (public API)
 ```
 
 ### API & Database
@@ -331,7 +336,7 @@ import createFetch from 'createFetch';
 ### By Feature
 
 - **Authentication** → `src/api/routes/auth.js`, `src/routes/login/`, `src/routes/register/`
-- **Internationalization** → `src/i18n/`, `src/actions/intl.js`, `src/components/LanguageSwitcher/`
+- **Internationalization** → `src/i18n/`, `src/redux/features/intl/`, `src/components/LanguageSwitcher/`
 - **Routing** → `src/router.js`, `src/routes/`, `src/navigator.js`
 - **Styling** → `*.css` files, `tools/postcss.config.js`
 - **API** → `src/api/routes/`, `src/api/models/`
@@ -339,7 +344,7 @@ import createFetch from 'createFetch';
 ### By Technology
 
 - **React Components** → `src/components/`, `src/routes/*/`
-- **Redux** → `src/actions/`, `src/reducers/`, `src/store/`
+- **Redux** → `src/redux/` (actions, reducers, store, constants)
 - **Express** → `src/server.js`, `src/api/`
 - **Webpack** → `tools/webpack/`
 - **Database** → `src/api/models/`, `src/api/sequelize.js`

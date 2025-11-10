@@ -16,19 +16,16 @@ import nodeFetch from 'node-fetch';
 import path from 'path';
 import PrettyError from 'pretty-error';
 import ReactDOM from 'react-dom/server';
-import { I18nextProvider } from 'react-i18next';
-import { setLocale } from './actions/intl';
-import { setRuntimeVariable } from './actions/runtime';
+import { configureStore, setLocale, setRuntimeVariable } from './redux';
 import { apiModels } from './api';
 import apiRoutes from './api/routes';
 import App from './components/App';
 import Html from './components/Html';
 import { createFetch } from './createFetch';
-import { getAvailableLocales, getI18nInstance } from './i18n';
+import { AVAILABLE_LOCALES, getI18nInstance } from './i18n';
 import * as navigator from './navigator';
 import router from './routes';
 import ErrorPage from './routes/error/ErrorPage';
-import configureStore from './store/configureStore';
 
 // =============================================================================
 // GLOBAL ERROR HANDLERS
@@ -60,24 +57,87 @@ global.navigator.userAgent = global.navigator.userAgent || 'all';
 const i18n = getI18nInstance();
 
 /**
- * Create a new ChunkExtractor instance for a request
- * Each request needs its own extractor to track which chunks are used
- * @returns {ChunkExtractor} A new ChunkExtractor instance
+ * Create fetch client for SSR with localhost base URL
+ * @param {Object} req - Express request
+ * @returns {Function} Fetch client
  */
-function createChunkExtractor() {
-  const statsFile = path.resolve(__dirname, 'loadable-stats.json');
-  return new ChunkExtractor({
-    statsFile,
-    entrypoints: ['client'],
+function createFetchClient(req) {
+  return createFetch(nodeFetch, {
+    baseUrl: `http://localhost:${process.env.RSK_PORT || 3000}`,
+    cookie: req.headers.cookie,
   });
 }
 
 /**
- * Extract inline HTML content from a React element (server-side helper)
- * Safely extracts the __html property from dangerouslySetInnerHTML
- *
- * @param {Object} element - React element with dangerouslySetInnerHTML prop
- * @returns {string|null} The HTML content string or null if not found
+ * Create enhanced error with request context and original stack
+ * @param {string} message - Error message
+ * @param {Error} originalError - Original error
+ * @param {Object} context - Context (req, route, data)
+ * @returns {Error} Enhanced error
+ */
+function createEnhancedError(message, originalError, context = {}) {
+  const error = new Error(message);
+  error.originalError = originalError;
+  error.stack = originalError.stack;
+
+  if (context.req) {
+    error.path = context.req.path;
+    error.method = context.req.method;
+  }
+  if (context.route) {
+    error.route = context.route;
+  }
+  if (context.data) {
+    error.data = {
+      ...context.data,
+      children: '[REDACTED]',
+      appState: '[REDACTED]',
+    };
+  }
+
+  return error;
+}
+
+/**
+ * Create Redux store for SSR with user, runtime vars, and locale
+ * @param {Object} req - Express request
+ * @param {Object} fetch - Fetch client
+ * @param {Object} i18n - i18next instance
+ * @param {Object} locales - Available locales
+ * @returns {Promise<Object>} Configured store
+ */
+async function createReduxStore(req, fetch, i18n, locales) {
+  // Create store with initial user state
+  const store = configureStore(
+    { user: req.user || null },
+    { fetch, navigator, i18n },
+  );
+
+  // Define all runtime variables
+  // These are dispatched to Redux store and available at state.runtime.*
+  const runtimeVariables = {
+    initialNow: Date.now(), // Timestamp for SSR consistency
+    appLocales: locales, // Available locales for language switcher
+    appName: process.env.RSK_APP_NAME || 'React Starter Kit',
+    appDescription:
+      process.env.RSK_APP_DESCRIPTION ||
+      'Boilerplate for React.js web applications',
+  };
+
+  // Dispatch all runtime variables at once
+  store.dispatch(setRuntimeVariable(runtimeVariables));
+
+  // Set locale from request
+  const locale = req.language || 'en-US';
+  await store.dispatch(setLocale(locale));
+
+  return store;
+}
+
+/**
+ * Extract HTML from React element's dangerouslySetInnerHTML
+ * @param {Object} element - React element
+ * @returns {string|null} HTML content or null
  */
 function getInnerHTML(element) {
   // eslint-disable-next-line no-underscore-dangle
@@ -85,89 +145,115 @@ function getInnerHTML(element) {
 }
 
 /**
- * Extract loadable component state from script elements (server-side)
- * This function runs on the server to extract state that will be sent to the client.
- * @loadable/server generates two inline scripts during SSR:
- * 1. Required chunks array - list of chunks that were used during rendering
- * 2. Named chunks object - metadata about code-split chunks
+ * Render complete HTML page from React component
+ * Handles React rendering, chunk extraction, and HTML template generation
+ * Supports React 16+ and React 18+
  *
- * The extracted state is then injected into the HTML as script tags with specific IDs
- * so that loadableReady() on the client can find them and hydrate correctly.
- *
- * @param {Array} scriptElements - Script elements from ChunkExtractor
- * @returns {Object} Object with requiredChunks and namedChunks JSON strings
+ * @param {Object} params - Rendering parameters
+ * @param {Object} params.req - Express request
+ * @param {Object} params.store - Redux store
+ * @param {Object} params.fetch - Fetch client
+ * @param {Object} params.i18n - i18next instance
+ * @param {Object} params.component - React component to render
+ * @param {Object} params.metadata - Page metadata (title, description, image, url, type)
+ * @param {Object} params.errorContext - Optional error context for debugging
+ * @returns {Promise<string>} Complete HTML document string
+ * @throws {Error} Enhanced error if rendering fails
  */
-function extractLoadableState(scriptElements) {
-  // Filter React elements to find inline scripts generated by @loadable/server
-  // These contain JSON data (not executable code) for client-side hydration
-  const inlineScripts = scriptElements.filter(
-    element => element.props.dangerouslySetInnerHTML,
-  );
+async function renderPageToHtml({
+  req,
+  store,
+  fetch,
+  i18n,
+  component,
+  metadata = {},
+  errorContext = {},
+}) {
+  try {
+    // Create context for App component
+    const context = {
+      fetch,
+      store,
+      i18n,
+      locale: req.language || 'en-US',
+      pathname: req.path,
+      query: req.query,
+    };
 
-  // Find the named chunks script (contains {"namedChunks": [...]})
-  // This provides metadata about code-split chunks used during rendering
-  const namedChunksScript = inlineScripts.find(element => {
-    const content = getInnerHTML(element);
-    return content && content.includes('namedChunks');
-  });
+    // Create ChunkExtractor for this request
+    const statsFile = path.resolve(__dirname, 'loadable-stats.json');
+    const extractor = new ChunkExtractor({
+      statsFile,
+      entrypoints: ['client'],
+    });
 
-  // Find the required chunks script (contains [...])
-  // This lists the chunk IDs that were loaded during server rendering
-  const requiredChunksScript = inlineScripts.find(
-    element =>
-      element !== namedChunksScript && element.props.dangerouslySetInnerHTML,
-  );
+    // Render React app to string with @loadable chunk collection
+    const jsx = extractor.collectChunks(
+      <App context={context}>{component}</App>,
+    );
+    const children = ReactDOM.renderToString(jsx);
 
-  // Return the raw JSON strings to be injected into HTML
-  return {
-    requiredChunks: getInnerHTML(requiredChunksScript),
-    namedChunks: getInnerHTML(namedChunksScript),
-  };
-}
+    // Extract CSS and JS chunks from ChunkExtractor
+    const linkElements = extractor.getLinkElements();
+    const styleElements = extractor.getStyleElements();
+    const scriptElements = extractor.getScriptElements();
 
-/**
- * Extract CSS and JS chunks from ChunkExtractor (server-side)
- * Processes React elements from @loadable/server and converts them to plain objects
- * suitable for serialization in the Html component.
- *
- * This runs on the server during SSR to:
- * 1. Extract inline CSS that was used during rendering
- * 2. Get URLs to CSS files that need to be loaded
- * 3. Get URLs to JavaScript bundles
- * 4. Extract loadable state for client-side hydration
- *
- * @param {ChunkExtractor} extractor - ChunkExtractor instance for this request
- * @returns {Object} Extracted chunks object
- * @returns {Array} return.styles - Inline CSS styles with id and cssText
- * @returns {Array} return.styleLinks - URLs to CSS files
- * @returns {Array} return.scripts - URLs to JavaScript bundles
- * @returns {Object} return.loadableState - Loadable state (requiredChunks, namedChunks)
- */
-function extractChunks(extractor) {
-  // Get React elements from ChunkExtractor
-  // These elements represent the resources used during server rendering
-  const linkElements = extractor.getLinkElements();
-  const styleElements = extractor.getStyleElements();
-  const scriptElements = extractor.getScriptElements();
+    // Separate external scripts from inline scripts
+    const externalScripts = scriptElements.filter(element => element.props.src);
+    const inlineScripts = scriptElements.filter(
+      element => element.props.dangerouslySetInnerHTML,
+    );
 
-  // Filter script elements to separate external bundles from inline state
-  const externalScripts = scriptElements.filter(element => element.props.src);
+    // Extract loadable state from inline scripts
+    const namedChunksScript = inlineScripts.find(element => {
+      const content = getInnerHTML(element);
+      return content && content.includes('namedChunks');
+    });
 
-  // Extract loadable component state for client-side hydration
-  // This state tells the client which chunks were used during SSR
-  const loadableState = extractLoadableState(scriptElements);
+    const requiredChunksScript = inlineScripts.find(
+      element =>
+        element !== namedChunksScript && element.props.dangerouslySetInnerHTML,
+    );
 
-  // Transform React elements into plain objects for Html component
-  // These will be serialized and sent to the client
-  return {
-    styles: styleElements.map((element, index) => ({
-      id: `loadable-style-${index}`,
-      cssText: getInnerHTML(element) || '',
-    })),
-    styleLinks: linkElements.map(element => element.props.href).filter(Boolean),
-    scripts: externalScripts.map(element => element.props.src).filter(Boolean),
-    loadableState,
-  };
+    // Prepare HTML data object for Html component
+    const htmlData = {
+      ...metadata,
+      // Styles
+      styles: styleElements.map((element, index) => ({
+        id: `loadable-style-${index}`,
+        cssText: getInnerHTML(element) || '',
+      })),
+      styleLinks: linkElements
+        .map(element => element.props.href)
+        .filter(Boolean),
+      // Scripts
+      scripts: externalScripts
+        .map(element => element.props.src)
+        .filter(Boolean),
+      // Loadable state for client-side hydration
+      loadableState: {
+        requiredChunks: getInnerHTML(requiredChunksScript),
+        namedChunks: getInnerHTML(namedChunksScript),
+      },
+      // Application state for Redux hydration
+      appState: {
+        apiUrl: process.env.RSK_API_BASE_URL || '',
+        reduxState: store.getState(),
+      },
+      // Rendered React content
+      children,
+    };
+
+    // Render final HTML document
+    const html = ReactDOM.renderToStaticMarkup(<Html {...htmlData} />);
+    return `<!doctype html>${html}`;
+  } catch (error) {
+    throw createEnhancedError(
+      `Page render failed for ${req.path}: ${error.message}`,
+      error,
+      { req, ...errorContext },
+    );
+  }
 }
 
 /**
@@ -197,8 +283,6 @@ const logPerformance = (req, renderTime, html) => {
 const app = express();
 app.set('trust proxy', process.env.RSK_TRUST_PROXY || 'loopback');
 
-const locales = getAvailableLocales();
-
 // =============================================================================
 // MIDDLEWARE
 // =============================================================================
@@ -207,7 +291,7 @@ app.use(express.static(path.resolve(__dirname, 'public')));
 app.use(cookieParser());
 app.use(
   requestLanguage({
-    languages: Object.keys(locales),
+    languages: Object.keys(AVAILABLE_LOCALES),
     queryName: 'lang',
     cookie: {
       name: 'lang',
@@ -250,11 +334,11 @@ app.set('jwtExpiresIn', process.env.RSK_JWT_EXPIRES_IN || '7d');
 // 1. Local API routes (checked FIRST)
 app.use('/api', apiRoutes);
 
-// 2. External API proxy (checked SECOND, only if RSK_API_SERVER_URL is set)
-if (process.env.RSK_API_SERVER_URL) {
+// 2. External API proxy (checked SECOND, only if RSK_API_PROXY_URL is set)
+if (process.env.RSK_API_PROXY_URL) {
   app.use(
     '/api',
-    expressProxy(process.env.RSK_API_SERVER_URL, {
+    expressProxy(process.env.RSK_API_PROXY_URL, {
       // Remove /api prefix before forwarding
       // Example: /api/products → /products
       proxyReqPathResolver: req => req.url.replace(/^\/api/, ''),
@@ -271,30 +355,10 @@ app.get('*', async (req, res, next) => {
   const startTime = Date.now();
 
   try {
-    // Create fetch client
-    const fetch = createFetch(nodeFetch, {
-      baseUrl:
-        process.env.RSK_API_SERVER_URL ||
-        `http://localhost:${process.env.RSK_PORT || 3000}`,
-      cookie: req.headers.cookie,
-    });
-
-    // Initialize Redux store
-    const store = configureStore(
-      { user: req.user || null },
-      { fetch, navigator },
-    );
-
-    // Dispatch runtime variables
-    store.dispatch(
-      setRuntimeVariable({ name: 'initialNow', value: Date.now() }),
-    );
-    store.dispatch(
-      setRuntimeVariable({ name: 'availableLocales', value: locales }),
-    );
-
-    const locale = req.language;
-    await store.dispatch(setLocale(locale));
+    // Create fetch client and Redux store
+    const fetch = createFetchClient(req);
+    const store = await createReduxStore(req, fetch, i18n, AVAILABLE_LOCALES);
+    const locale = req.language || 'en-US';
 
     // Resolve route using IsomorphicRouter
     // The router matches the pathname against route configuration,
@@ -303,6 +367,7 @@ app.get('*', async (req, res, next) => {
       fetch,
       store,
       i18n,
+      locale,
       pathname: req.path,
       query: req.query,
     };
@@ -325,37 +390,26 @@ app.get('*', async (req, res, next) => {
       throw error;
     }
 
-    // Prepare data for HTML rendering
-    const data = {
-      title: route.title || 'React Starter Kit',
-      description:
-        route.description || 'Boilerplate for React.js web applications',
+    // Prepare metadata for HTML rendering
+    const metadata = {
+      title: route.title, // Already formatted by routes/index.js root action
+      description: route.description, // Already has default from routes/index.js root action
       image: route.image || null,
       url: `${req.protocol}://${req.get('host')}${req.path}`,
       type: route.type || 'website',
     };
 
-    // Create a ChunkExtractor for this request
-    const extractor = createChunkExtractor();
-
-    // Render React app to string with @loadable chunk collection
+    // Render complete HTML page
     const reactRenderStart = performance.now();
-    try {
-      const jsx = extractor.collectChunks(
-        <App context={context}>{route.component}</App>,
-      );
-      data.children = ReactDOM.renderToString(jsx);
-    } catch (renderError) {
-      // Preserve original error stack and add context
-      const error = new Error(
-        `React render failed for ${req.path}: ${renderError.message}`,
-      );
-      error.originalError = renderError;
-      error.stack = renderError.stack;
-      error.path = req.path;
-      error.route = route;
-      throw error;
-    }
+    const html = await renderPageToHtml({
+      req,
+      store,
+      fetch,
+      i18n,
+      component: route.component,
+      metadata,
+      errorContext: { route },
+    });
     const reactRenderTime = performance.now() - reactRenderStart;
 
     // Log slow React renders in development
@@ -367,41 +421,11 @@ app.get('*', async (req, res, next) => {
         )}ms)`,
       );
     }
-
-    // Extract CSS and JS chunks using @loadable/server
-    const chunks = extractChunks(extractor);
-    data.styles = chunks.styles;
-    data.styleLinks = chunks.styleLinks;
-    data.scripts = chunks.scripts;
-    data.loadableState = chunks.loadableState;
-
-    // Serialize application state
-    data.appState = {
-      apiUrl: process.env.RSK_API_CLIENT_URL || '',
-      state: store.getState(),
-      lang: locale,
-    };
-
-    // Render HTML template
-    let html;
-    try {
-      html = ReactDOM.renderToStaticMarkup(<Html {...data} />);
-    } catch (htmlError) {
-      // Preserve original error stack and add context
-      const error = new Error(
-        `HTML template render failed for ${req.path}: ${htmlError.message}`,
-      );
-      error.originalError = htmlError;
-      error.stack = htmlError.stack;
-      error.path = req.path;
-      error.data = { ...data, app: '[REDACTED]' }; // Don't log full state
-      throw error;
-    }
     const renderTime = Date.now() - startTime;
 
     // Send response
     res.status(route.status || 200);
-    res.send(`<!doctype html>${html}`);
+    res.send(html);
 
     // Log performance
     logPerformance(req, renderTime, html);
@@ -420,7 +444,11 @@ const pe = new PrettyError();
 pe.skipNodeFiles();
 pe.skipPackage('express');
 
-app.use((err, req, res) => {
+app.use(async (err, req, res) => {
+  // Create fetch client and Redux store
+  const fetch = createFetchClient(req);
+  const store = await createReduxStore(req, fetch, i18n, AVAILABLE_LOCALES);
+
   console.error('❌ Server Error:', err.message);
   console.error('Status:', err.status || 500, 'Path:', req.path);
 
@@ -430,47 +458,77 @@ app.use((err, req, res) => {
     console.error(err.stack);
   }
 
-  const locale = req.language || 'en-US';
+  // Prepare metadata for error page
+  const metadata = {
+    title: 'Internal Server Error',
+    description: err.message,
+  };
 
   try {
-    // Create a ChunkExtractor for error page rendering
-    const extractor = createChunkExtractor();
-
-    // Render error page with @loadable chunk collection
-    const jsx = extractor.collectChunks(
-      <I18nextProvider i18n={i18n}>
-        <ErrorPage error={err} />
-      </I18nextProvider>,
-    );
-    const errorContent = ReactDOM.renderToString(jsx);
-
-    // Extract CSS and JS chunks
-    const chunks = extractChunks(extractor);
-
-    // Prepare data for Html component
-    const data = {
-      title: 'Internal Server Error',
-      description: err.message,
-      ...chunks,
-      appState: {
-        apiUrl: process.env.RSK_API_CLIENT_URL || '',
-        lang: locale,
-      },
-      children: errorContent,
-    };
-
-    const html = ReactDOM.renderToStaticMarkup(<Html {...data} />);
+    // Render complete error page HTML
+    const html = await renderPageToHtml({
+      req,
+      store,
+      fetch,
+      i18n,
+      component: <ErrorPage error={err} />,
+      metadata,
+      errorContext: { err },
+    });
 
     res.status(err.status || 500);
-    res.send(`<!doctype html>${html}`);
+    res.send(html);
   } catch (renderError) {
-    console.error('❌ Error page rendering failed:', renderError.message);
+    // Create enhanced error for error page rendering failure
+    const enhancedError = createEnhancedError(
+      `Error page render failed for ${req.path}: ${renderError.message}`,
+      renderError,
+      { req },
+    );
+
+    console.error('❌ Error page rendering failed:', enhancedError.message);
+    console.error('Original error:', err.message);
+    console.error('Render error stack:', renderError.stack);
+
+    // Send minimal fallback HTML when error page rendering fails
+    // This is the last resort - a simple, static HTML page that cannot fail
     res
       .status(500)
       .send(
-        '<!doctype html><html><head><title>Error</title></head>' +
-          '<body><h1>Internal Server Error</h1>' +
-          '<p>An error occurred while processing your request.</p></body></html>',
+        '<!doctype html>' +
+          '<html lang="en">' +
+          '<head>' +
+          '<meta charset="utf-8">' +
+          '<meta name="viewport" content="width=device-width,initial-scale=1">' +
+          `<title>${metadata.title}</title>` +
+          '<style>' +
+          'body{font-family:system-ui,-apple-system,sans-serif;max-width:600px;margin:80px auto;padding:0 20px;line-height:1.6;color:#333}' +
+          'h1{color:#d32f2f;font-size:24px;margin-bottom:16px}' +
+          'p{margin:12px 0}' +
+          'code{background:#f5f5f5;padding:2px 6px;border-radius:3px;font-size:14px}' +
+          'a{color:#1976d2;text-decoration:none}' +
+          'a:hover{text-decoration:underline}' +
+          '</style>' +
+          '</head>' +
+          '<body>' +
+          '<h1>⚠️ Internal Server Error</h1>' +
+          '<p>We encountered an error while trying to display the error page.</p>' +
+          '<p><strong>What happened:</strong></p>' +
+          '<ul>' +
+          `<li>Original error: ${err.message}</li>` +
+          `<li>Error page rendering also failed</li>` +
+          '</ul>' +
+          '<p><strong>What you can do:</strong></p>' +
+          '<ul>' +
+          '<li>Try refreshing the page</li>' +
+          '<li>Go back to the <a href="/">home page</a></li>' +
+          '<li>Contact support if the problem persists</li>' +
+          '</ul>' +
+          (__DEV__
+            ? `<p><strong>Developer info:</strong></p><p><code>${renderError.message}</code></p>`
+            : '') +
+          '</body>' +
+          '</html>',
       );
   }
 });
@@ -495,16 +553,21 @@ else {
     })
     .then(() => {
       const port = parseInt(process.env.RSK_PORT, 10) || 3000;
-      const apiUrl =
-        process.env.RSK_API_SERVER_URL || `http://localhost:${port}`;
 
       app.listen(port, () => {
         console.info('🚀 Server started!');
-        console.info(`📡 http://localhost:${port}/`);
+        console.info(`📡 Server: http://localhost:${port}/`);
         console.info(
           `🌍 Environment: ${process.env.NODE_ENV || 'development'}`,
         );
-        console.info(`🔧 API: ${apiUrl}`);
+
+        // Show API configuration
+        if (process.env.RSK_API_PROXY_URL) {
+          console.info(`🔀 API Proxy: ${process.env.RSK_API_PROXY_URL}`);
+        }
+        if (process.env.RSK_API_BASE_URL) {
+          console.info(`🌐 Client API: ${process.env.RSK_API_BASE_URL}`);
+        }
       });
     });
 }

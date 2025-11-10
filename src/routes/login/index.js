@@ -6,16 +6,30 @@
  */
 
 import Layout from '../../components/Layout';
+import { isAuthenticated } from '../../redux';
 import Login from './Login';
 
-function action({ fetch }) {
+/**
+ * Login route
+ * Redirects authenticated users to home page
+ */
+function action(context) {
   const title = 'Log In';
+
+  // Get state from Redux store
+  const state = context.store.getState();
+
+  // Redirect authenticated users to home
+  if (isAuthenticated(state)) {
+    return { redirect: '/' };
+  }
+
   return {
     chunks: ['login'],
     title,
     component: (
       <Layout>
-        <Login title={title} fetch={fetch} />
+        <Login title={title} />
       </Layout>
     ),
   };

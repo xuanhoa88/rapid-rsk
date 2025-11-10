@@ -32,10 +32,10 @@ function sleep(ms) {
  * @returns {Promise} - Result of the operation
  */
 export async function withRetry(operation, options = {}) {
-  const maxRetries = options.maxRetries ?? 2;
-  const delay = options.delay ?? 1000;
-  const backoff = options.backoff ?? 1.5;
-  const context = options.context ?? {};
+  const maxRetries = options.maxRetries !== undefined ? options.maxRetries : 2;
+  const delay = options.delay !== undefined ? options.delay : 1000;
+  const backoff = options.backoff !== undefined ? options.backoff : 1.5;
+  const context = options.context !== undefined ? options.context : {};
 
   let lastError;
   let currentDelay = delay;

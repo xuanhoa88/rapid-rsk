@@ -6,14 +6,27 @@
  */
 
 import Layout from '../../components/Layout';
+import { isAuthenticated, isAdmin } from '../../redux';
 import Admin from './Admin';
 
-const title = 'Admin Page';
-const isAdmin = false;
+/**
+ * Admin dashboard route
+ * Requires authentication and admin role
+ */
+async function action(context) {
+  const title = 'Admin Dashboard';
 
-function action() {
-  if (!isAdmin) {
+  // Get state from Redux store
+  const state = context.store.getState();
+
+  // Check if user is authenticated
+  if (!isAuthenticated(state)) {
     return { redirect: '/login' };
+  }
+
+  // Check if user has admin role
+  if (!isAdmin(state)) {
+    return { redirect: '/', status: 403 };
   }
 
   return {

@@ -8,9 +8,9 @@
 import Layout from '../../components/Layout';
 import Contact from './Contact';
 
-const title = 'Contact Us';
+async function action() {
+  const title = 'Contact Us';
 
-function action() {
   return {
     chunks: ['contact'],
     title,

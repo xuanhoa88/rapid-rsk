@@ -7,27 +7,29 @@
 
 import Link from '../Link';
 import s from './Footer.css';
+import { useTranslation } from 'react-i18next';
 
 function Footer() {
+  const { t } = useTranslation();
   return (
     <div className={s.root}>
       <div className={s.container}>
-        <span className={s.text}>© Your Company</span>
+        <span className={s.text}>{t('footer.copyright')}</span>
         <span className={s.spacer}>·</span>
         <Link className={s.link} to='/'>
-          Home
+          {t('navigation.home')}
         </Link>
         <span className={s.spacer}>·</span>
         <Link className={s.link} to='/admin'>
-          Admin
+          {t('navigation.admin')}
         </Link>
         <span className={s.spacer}>·</span>
         <Link className={s.link} to='/privacy'>
-          Privacy
+          {t('navigation.privacy')}
         </Link>
         <span className={s.spacer}>·</span>
         <Link className={s.link} to='/not-found'>
-          Not Found
+          {t('navigation.notFound')}
         </Link>
       </div>
     </div>

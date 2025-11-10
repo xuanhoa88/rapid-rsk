@@ -1,21 +1,28 @@
 {
+  "login": {
+    "title": "Přihlásit"
+  },
   "header": {
     "banner": {
       "desc": "Komplexní aplikace jednodušše",
       "title": "React"
     },
-    "brand": "Vaše firma"
+    "brand": "Xtepify"
   },
   "navigation": {
     "about": "O nás",
     "contact": "Kontakt",
     "login": "Přihlásit",
     "register": "Registrace",
+    "home": "Domů",
+    "admin": "Admin",
+    "privacy": "Soukromí",
+    "notFound": "Nenalezeno",
     "separator": {
       "or": "nebo"
     }
   },
-  "login": {
-    "title": "Přihlásit"
+  "footer": {
+    "copyright": "© Xtepify, Všechna práva vyhrazena"
   }
 }

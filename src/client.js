@@ -7,21 +7,39 @@
 
 import { loadableReady } from '@loadable/component';
 import queryString from 'query-string';
-import { createRoot, hydrateRoot } from 'react-dom/client';
+import ReactDOM from 'react-dom';
 import 'whatwg-fetch';
 import App from './components/App';
 import { createFetch } from './createFetch';
-import i18n from './i18n';
+import { getI18nInstance } from './i18n';
 import * as navigator from './navigator';
 import router from './routes';
-import configureStore from './store/configureStore';
+import { configureStore } from './redux';
+
+/**
+ * Get i18n instance for error page rendering
+ */
+const i18n = getI18nInstance();
+
+// React 18+ APIs (optional)
+let createRoot;
+let hydrateRoot;
+try {
+  const ReactDOMClient = require('react-dom/client');
+  createRoot = ReactDOMClient.createRoot;
+  hydrateRoot = ReactDOMClient.hydrateRoot;
+} catch (e) {
+  // React 16/17 fallback
+  createRoot = null;
+  hydrateRoot = null;
+}
 
 // -------------------------------------------------------------------------
-// DOM Helper Functions for managing document head elements
+// DOM Helper Functions
 // -------------------------------------------------------------------------
 
 /**
- * Update the document title
+ * Update document title
  */
 function updateTitle(title) {
   if (title) {
@@ -30,7 +48,7 @@ function updateTitle(title) {
 }
 
 /**
- * Update or create a meta tag
+ * Update or create meta tag
  */
 function updateMeta(name, content, isProperty = false) {
   const attribute = isProperty ? 'property' : 'name';
@@ -46,7 +64,7 @@ function updateMeta(name, content, isProperty = false) {
 }
 
 /**
- * Update or create a link tag
+ * Update or create link tag
  */
 function updateLink(rel, href, attributes = {}) {
   let link = document.querySelector(
@@ -61,30 +79,14 @@ function updateLink(rel, href, attributes = {}) {
 
   link.setAttribute('href', href);
 
-  // Set additional attributes
   Object.keys(attributes).forEach(key => {
     link.setAttribute(key, attributes[key]);
   });
 }
 
 /**
- * Update page metadata (title, description, and Open Graph tags)
- * Call this function after route changes to update meta tags
- *
- * @param {Object} metadata - Metadata object
- * @param {string} metadata.title - Page title
- * @param {string} metadata.description - Page description
- * @param {string} metadata.image - Open Graph image URL
- * @param {string} metadata.url - Canonical URL
- * @param {string} metadata.type - Open Graph type (default: 'website')
- *
- * @example
- * updatePageMetadata({
- *   title: 'My Page - Site Name',
- *   description: 'Page description',
- *   image: 'https://example.com/image.jpg',
- *   url: 'https://example.com/page',
- * });
+ * Update page metadata after route changes
+ * @param {Object} metadata - Page metadata (title, description, image, url, type)
  */
 function updatePageMetadata({
   title,
@@ -124,46 +126,54 @@ function updatePageMetadata({
 // Application Initialization
 // -------------------------------------------------------------------------
 
-// Universal HTTP client
 const fetch = createFetch(window.fetch, {
   // eslint-disable-next-line no-underscore-dangle
   baseUrl: window.__APP_STATE__.apiUrl,
 });
 
-// Initialize a new Redux store
-// http://redux.js.org/docs/basics/UsageWithReact.html
 // eslint-disable-next-line no-underscore-dangle
-const store = configureStore(window.__APP_STATE__.state, {
+const store = configureStore(window.__APP_STATE__.reduxState, {
   fetch,
   navigator,
+  i18n,
 });
 
-// Global (context) variables that can be easily accessed from any React component
-// https://facebook.github.io/react/docs/context.html
 const context = {
   store,
   fetch,
   i18n,
+  get locale() {
+    const { intl } = store.getState();
+    return (intl && intl.locale) || 'en-US';
+  },
 };
 
-const container = document.getElementById('app');
-let currentLocation = navigator.getCurrentLocation();
-let unsubscribeNavigation = null;
-
-// React 18 root instance (cached for re-renders)
+// React 18+ root instance (cached for re-renders, null for React 16/17)
 let root = null;
 
+// DOM container for React app
+const container = document.getElementById('app');
+
+// Current location state
+let currentLocation = navigator.getCurrentLocation();
+
+// Navigation subscription cleanup function
+let unsubscribeNavigation = null;
+
+// Scroll position cache for back/forward navigation
 const scrollPositionsHistory = {};
 
-// Performance monitoring
-const performanceMetrics = {
-  navigationCount: 0,
-  errors: [],
-  lastNavigationTime: null,
-};
+// Performance tracking (development only)
+const performanceMetrics = __DEV__
+  ? {
+      navigationCount: 0,
+      errors: [],
+      lastNavigationTime: null,
+    }
+  : null;
 
 /**
- * Save current scroll position
+ * Save current scroll position for back/forward navigation
  */
 function saveScrollPosition() {
   if (currentLocation && currentLocation.key) {
@@ -175,8 +185,7 @@ function saveScrollPosition() {
 }
 
 /**
- * Restore scroll position for a location
- * @param {Object} location - History location object
+ * Restore scroll position or scroll to hash target
  */
 function restoreScrollPosition(location) {
   let scrollX = 0;
@@ -187,7 +196,6 @@ function restoreScrollPosition(location) {
     scrollX = pos.scrollX;
     scrollY = pos.scrollY;
   } else {
-    // Handle hash navigation
     const targetHash = location.hash.substr(1);
     if (targetHash) {
       const target = document.getElementById(targetHash);
@@ -197,52 +205,41 @@ function restoreScrollPosition(location) {
     }
   }
 
-  // Use requestAnimationFrame for smoother scrolling
   requestAnimationFrame(() => window.scrollTo(scrollX, scrollY));
 }
 
 /**
- * Handle navigation errors
- * @param {Error} error - Error object
- * @param {boolean} isInitialRender - Whether this is the initial render
- * @param {Object} location - Current location
+ * Handle navigation errors and reload page if needed
  */
 function handleNavigationError(error, isInitialRender, location) {
-  // Track error
-  performanceMetrics.errors.push({
-    timestamp: Date.now(),
-    error: error.message,
-    stack: error.stack,
-    location: location.pathname,
-    isInitialRender,
-  });
-
   if (__DEV__) {
+    performanceMetrics?.errors.push({
+      timestamp: Date.now(),
+      error: error.message,
+      stack: error.stack,
+      location: location.pathname,
+      isInitialRender,
+    });
     console.error('Navigation error:', error);
     throw error;
   }
 
   console.error('Navigation error:', error);
 
-  // Do a full page reload if error occurs during client-side navigation
   if (!isInitialRender && currentLocation.key === location.key) {
-    console.error('RSK will reload your page after error');
+    console.error('React Starter Kit will reload your page after error');
     window.location.reload();
   }
 }
 
 /**
- * Re-render the app when window.location changes
- * @param {Object} location - History location object
- * @param {string} action - Navigation action (PUSH, REPLACE, POP)
+ * Handle location changes and re-render app
  */
 async function onLocationChange(location, action) {
   const navigationStartTime = performance.now();
 
-  // Save scroll position before navigation
   saveScrollPosition();
 
-  // Delete stored scroll position for next page if action is PUSH
   if (action === 'PUSH') {
     delete scrollPositionsHistory[location.key];
   }
@@ -254,12 +251,8 @@ async function onLocationChange(location, action) {
     context.pathname = location.pathname;
     context.query = queryString.parse(location.search);
 
-    // Traverses the list of routes in the order they are defined until
-    // it finds the first route that matches provided URL path string
-    // and whose action method returns anything other than `undefined`.
     const route = await router.resolve(context);
 
-    // Prevent multiple page renders during the routing process
     if (currentLocation.key !== location.key) {
       return;
     }
@@ -269,44 +262,48 @@ async function onLocationChange(location, action) {
       return;
     }
 
-    // Create app element
     const appElement = <App context={context}>{route.component}</App>;
 
-    // React 18: Use hydrateRoot for initial render, createRoot for subsequent renders
     if (isInitialRender) {
-      // Hydrate on initial render (SSR)
-      root = hydrateRoot(container, appElement, {
-        onRecoverableError: error => {
-          if (__DEV__) {
-            console.error('Hydration error:', error);
-          }
-          performanceMetrics.errors.push({
-            type: 'hydration',
-            error,
-            timestamp: Date.now(),
-          });
-        },
-      });
+      if (typeof hydrateRoot === 'function') {
+        // React 18+
+        root = hydrateRoot(container, appElement, {
+          onRecoverableError: error => {
+            if (__DEV__) {
+              console.error('Hydration error:', error);
+              performanceMetrics?.errors.push({
+                type: 'hydration',
+                error,
+                timestamp: Date.now(),
+              });
+            }
+          },
+        });
+      } else {
+        // React 16/17 fallback
+        // eslint-disable-next-line react/no-deprecated
+        ReactDOM.hydrate(appElement, container);
+      }
 
-      // Switch off the native scroll restoration behavior and handle it manually
-      // https://developers.google.com/web/updates/2015/09/history-api-scroll-restoration
       if (window.history && 'scrollRestoration' in window.history) {
         window.history.scrollRestoration = 'manual';
       }
 
-      // Remove SSR CSS
       const elem = document.getElementById('css');
       if (elem) elem.parentNode.removeChild(elem);
     } else {
-      // Create root on first client-side navigation (if not hydrated)
-      if (!root) {
-        root = createRoot(container);
+      if (typeof createRoot === 'function') {
+        // React 18+
+        if (!root) {
+          root = createRoot(container);
+        }
+        root.render(appElement);
+      } else {
+        // React 16/17 fallback
+        // eslint-disable-next-line react/no-deprecated
+        ReactDOM.render(appElement, container);
       }
 
-      // Re-render on navigation
-      root.render(appElement);
-
-      // Update page metadata if provided in route
       if (route.title || route.description) {
         updatePageMetadata({
           title: route.title,
@@ -315,19 +312,19 @@ async function onLocationChange(location, action) {
         });
       }
 
-      // Restore scroll position
       restoreScrollPosition(location);
     }
 
-    // Track performance
-    const navigationDuration = performance.now() - navigationStartTime;
-    performanceMetrics.navigationCount += 1;
-    performanceMetrics.lastNavigationTime = navigationDuration;
+    if (__DEV__) {
+      const navigationDuration = performance.now() - navigationStartTime;
+      performanceMetrics.navigationCount += 1;
+      performanceMetrics.lastNavigationTime = navigationDuration;
 
-    if (__DEV__ && navigationDuration > 1000) {
-      console.warn(
-        `Slow navigation detected: ${navigationDuration.toFixed(2)}ms`,
-      );
+      if (navigationDuration > 1000) {
+        console.warn(
+          `Slow navigation detected: ${navigationDuration.toFixed(2)}ms`,
+        );
+      }
     }
   } catch (error) {
     handleNavigationError(error, isInitialRender, location);
@@ -335,19 +332,15 @@ async function onLocationChange(location, action) {
 }
 
 /**
- * Cleanup function to unsubscribe from navigation and save state
+ * Cleanup before page unload
  */
 function cleanup() {
-  // Save current scroll position
   saveScrollPosition();
 
-  // Unsubscribe from navigation
   if (typeof unsubscribeNavigation === 'function') {
     unsubscribeNavigation();
     unsubscribeNavigation = null;
   }
-
-  // App cleanup complete
 
   if (__DEV__) {
     // eslint-disable-next-line no-console
@@ -356,23 +349,18 @@ function cleanup() {
 }
 
 /**
- * Initialize the client-side application
- * Sets up navigation, event listeners, and triggers initial render
+ * Initialize app with navigation and event listeners
  */
 let isHistoryObserved = false;
 function initializeApp() {
-  // Handle client-side navigation by using HTML5 History API
-  // For more information visit https://github.com/mjackson/history#readme
   currentLocation = navigator.getCurrentLocation();
 
   if (!isHistoryObserved) {
     isHistoryObserved = true;
     unsubscribeNavigation = navigator.subscribeToNavigation(onLocationChange);
 
-    // Setup cleanup on page unload
     window.addEventListener('beforeunload', cleanup);
 
-    // Save scroll position on scroll (debounced)
     let scrollTimeout;
     window.addEventListener(
       'scroll',
@@ -393,16 +381,12 @@ function initializeApp() {
 // APPLICATION STARTUP
 // =============================================================================
 
-// Application startup requires both conditions to be met:
-// 1. DOM is ready (document parsed, container element exists)
-// 2. Code-split chunks are loaded (@loadable/component)
 const READY_STATES = new Set(['interactive', 'complete']);
 let isDOMReady = READY_STATES.has(document.readyState) && !!document.body;
 let areChunksLoaded = false;
 
 /**
- * Attempt to start the application if both conditions are met
- * Only proceeds when both DOM and chunks are ready
+ * Start app when both DOM and chunks are ready
  */
 function attemptStartup() {
   if (isDOMReady && areChunksLoaded) {
@@ -410,7 +394,7 @@ function attemptStartup() {
   }
 }
 
-// Wait for @loadable chunks to be loaded
+// Wait for code-split chunks to load
 loadableReady(() => {
   areChunksLoaded = true;
   attemptStartup();
@@ -418,21 +402,17 @@ loadableReady(() => {
 
 // Wait for DOM to be ready
 if (isDOMReady) {
-  // DOM already ready, check if chunks are loaded
   attemptStartup();
 } else {
-  // Wait for DOM to be ready
   document.addEventListener('DOMContentLoaded', () => {
     isDOMReady = true;
     attemptStartup();
   });
 }
 
-// Hot Module Replacement (HMR) for router changes
-// React Refresh handles component updates automatically
+// Hot module replacement for route changes
 if (__DEV__ && module.hot) {
   module.hot.accept('./routes', () => {
-    // Re-render current route when router configuration changes
     onLocationChange(currentLocation);
   });
 }

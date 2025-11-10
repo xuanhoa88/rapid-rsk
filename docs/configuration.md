@@ -44,17 +44,17 @@ cp .env.example .env
 
 ## API Configuration
 
-### `RSK_API_CLIENT_URL`
+### `RSK_API_BASE_URL`
 - **Default:** `` (empty - uses relative URLs)
-- **Description:** API URL for client-side requests
-- **Example:** `RSK_API_CLIENT_URL=https://api.example.com`
-- **Use Case:** When API is on a different domain
+- **Description:** Base URL for browser API requests
+- **Example:** `RSK_API_BASE_URL=https://api.example.com`
+- **Use Case:** When API is on a different domain than the web server
 
-### `RSK_API_SERVER_URL`
+### `RSK_API_PROXY_URL`
 - **Default:** `` (empty - no external proxy)
-- **Description:** External API server for proxying requests
-- **Example:** `RSK_API_SERVER_URL=https://api.github.com`
-- **Use Case:** Proxy `/api/*` requests to external API, hide API keys, avoid CORS
+- **Description:** External API URL to proxy `/api/*` requests to
+- **Example:** `RSK_API_PROXY_URL=https://api.github.com`
+- **Use Case:** Proxy client requests to external API, hide API keys, avoid CORS
 
 **How it works:**
 ```
@@ -208,7 +208,7 @@ RSK_JWT_SECRET=${STRONG_RANDOM_SECRET}
 RSK_JWT_EXPIRES_IN=1d
 
 # External API
-RSK_API_SERVER_URL=https://api.example.com
+RSK_API_PROXY_URL=https://api.example.com
 
 # Minimal logging
 LOG_LEVEL=info

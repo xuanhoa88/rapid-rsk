@@ -8,6 +8,7 @@
 /* eslint-disable global-require */
 
 import IsomorphicRouter from '../router';
+import { getRuntimeVariable } from '../redux';
 
 /**
  * Application routes configuration.
@@ -68,14 +69,23 @@ const routes = {
    * Root action - wraps all child routes.
    * Provides default metadata and executes child route actions.
    */
-  async action({ next }) {
+  async action({ next, store }) {
     const route = await next();
+
+    // Get application metadata from Redux runtime variables (configured via environment variables)
+    const state = store.getState();
+    const appName = getRuntimeVariable(state, 'appName', 'React Starter Kit');
+    const appDescription = getRuntimeVariable(
+      state,
+      'appDescription',
+      'Boilerplate for React.js web applications',
+    );
 
     // Apply default metadata
     return {
       ...route,
-      title: route.title ? `${route.title} - RSK` : 'RSK',
-      description: route.description || '',
+      title: (route.title && `${route.title} - ${appName}`) || appName,
+      description: route.description || appDescription,
     };
   },
 };

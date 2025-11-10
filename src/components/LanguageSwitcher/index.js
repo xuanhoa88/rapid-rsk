@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { setLocale } from '../../actions/intl';
+import { setLocale } from '../../redux';
 import s from './LanguageSwitcher.css';
 
 /**
@@ -11,9 +11,9 @@ function LanguageSwitcher() {
   // Redux hooks
   const dispatch = useDispatch();
   const currentLocale = useSelector(state => state.intl.locale);
-  const availableLocales = useSelector(
-    state => state.runtime.availableLocales || {},
-  );
+
+  // Get appLocales from runtime variables
+  const appLocales = useSelector(state => state.runtime.appLocales || {});
 
   /**
    * Handle locale change
@@ -40,7 +40,7 @@ function LanguageSwitcher() {
 
   return (
     <div className={s.root}>
-      {Object.entries(availableLocales).map(([code, { name }]) => (
+      {Object.entries(appLocales).map(([code, { name }]) => (
         <span key={code}>
           {isSelected(code) ? (
             <span>{name}</span>

@@ -7,15 +7,22 @@
       "desc": "Complex web apps made easy",
       "title": "React"
     },
-    "brand": "Your Company Brand"
+    "brand": "Xtepify"
   },
   "navigation": {
     "about": "About",
     "contact": "Contact",
     "login": "Login",
+    "register": "Register",
+    "home": "Home",
+    "admin": "Admin",
+    "privacy": "Privacy",
+    "notFound": "Not Found",
     "separator": {
       "or": "or"
-    },
-    "register": "Register"
+    }
+  },
+  "footer": {
+    "copyright": "© Xtepify, All rights reserved"
   }
 }
