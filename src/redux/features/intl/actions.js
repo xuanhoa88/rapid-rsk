@@ -130,19 +130,22 @@ export function setLocale(locale) {
 
     try {
       // Change i18next language using helper
-      const newLanguage = await i18n.changeLanguage(locale);
+      await i18n.changeLanguage(locale);
 
-      // Success - update Redux state
+      // Get the loaded messages from i18next resource store
+      const messages = i18n.getResourceBundle(locale, 'translation');
+
+      // Success - update Redux state with locale and messages
       dispatch({
         type: SET_LOCALE_SUCCESS,
-        payload: { locale },
+        payload: { locale, messages },
       });
 
       // Persist locale (browser only)
       setLocaleCookie(locale);
       updateLocaleUrl(locale, navigator);
 
-      return newLanguage;
+      return locale;
     } catch (error) {
       // Error - update Redux state
       console.error('Failed to change locale:', error);
