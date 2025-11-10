@@ -1,6 +1,6 @@
 # React Starter Kit
 
-> **Modern, production-ready React application boilerplate with server-side rendering, built on React 18, Express, and Webpack 5.**
+> **Modern, production-ready React application boilerplate with server-side rendering, built on React 16+, Express, and Webpack 5. Supports React 16, 17, and 18+.**
 
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D16.0.0-brightgreen.svg)](https://nodejs.org/)
 [![React Version](https://img.shields.io/badge/react-18.3.1-blue.svg)](https://reactjs.org/)
@@ -8,7 +8,7 @@
 
 ## ✨ Features
 
-- **⚛️ React 18** - Latest React with concurrent features and new JSX transform
+- **⚛️ React 16+** - Supports React 16, 17, and 18+ with backward compatibility
 - **🚀 Server-Side Rendering (SSR)** - Fast initial page loads with SEO optimization
 - **📦 Webpack 5** - Modern bundling with code splitting and tree shaking
 - **🔥 Hot Module Replacement** - Instant feedback during development with React Refresh
@@ -96,7 +96,7 @@ npm run i18n           # Extract i18n messages
 
 ### Frontend
 
-- **[React 18.3.1](https://reactjs.org/)** - UI library with concurrent features
+- **[React 16+](https://reactjs.org/)** - UI library (supports React 16, 17, and 18+)
 - **[Redux 4.2.1](https://redux.js.org/)** - State management
 - **[Universal Router 8.3](https://github.com/kriasoft/universal-router)** - Isomorphic routing
 - **[react-i18next 14.1.3](https://react.i18next.com/)** - Internationalization

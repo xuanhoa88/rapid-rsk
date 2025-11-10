@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { setLocale } from '../../../redux';
+import { LOCALE_COOKIE_NAME, setLocale } from '../../../redux';
 import s from './LanguageSwitcher.css';
 
 /**
@@ -48,10 +48,10 @@ function LanguageSwitcher() {
 
   return (
     <div className={s.root}>
-      {localeEntries.map(([code, { name }]) => (
+      {localeEntries.map(([code, name]) => (
         <a
           key={code}
-          href={`?lang=${code}`}
+          href={`?${LOCALE_COOKIE_NAME}=${code}`}
           onClick={e => handleLocaleChange(code, e)}
           className={isSelected(code) ? s.active : s.link}
           aria-current={isSelected(code) ? 'true' : undefined}

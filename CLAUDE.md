@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Production-ready React application boilerplate with server-side rendering (SSR), built on React 18, Express, and Webpack 5. This is a **single-repository** full-stack application with comprehensive tooling for modern web development.
+Production-ready React application boilerplate with server-side rendering (SSR), built on React 16+, Express, and Webpack 5. Supports React 16, 17, and 18+ with backward compatibility. This is a **single-repository** full-stack application with comprehensive tooling for modern web development.
 
 ## Project Structure
 
@@ -37,17 +37,17 @@ react-starter-kit/
 - **Language:** JavaScript (ES2015+) with JSX
 
 ### Frontend
-- **React:** 18.3.1 (with concurrent features, new JSX transform)
+- **React:** 16+ (supports React 16, 17, and 18+ with backward compatibility)
 - **State Management:** Redux 7.2.9 with React Redux hooks
 - **Routing:** Universal router with code splitting
 - **Styling:** CSS Modules + PostCSS + Autoprefixer
 - **i18n:** react-i18next 14.1.3 with i18next 23.15.2
 
 ### Backend
-- **Server:** Express 4.16.3
-- **Authentication:** JWT (jsonwebtoken 8.2.0 + express-jwt 5.3.1)
-- **Database:** Sequelize ORM (supports PostgreSQL, MySQL, SQLite)
-- **Middleware:** body-parser, cookie-parser, express-request-language
+- **Server:** Express 4.21.1 (Node.js 16+ compatible)
+- **Authentication:** JWT (jsonwebtoken 9.0.2 + express-jwt 8.4.1)
+- **Database:** Sequelize 6.37.5 ORM (supports PostgreSQL, MySQL, SQLite)
+- **Middleware:** body-parser 1.20.3, cookie-parser 1.4.7, express-request-language 1.1.15
 
 ### Build Tools
 - **Bundler:** Webpack 5 with code splitting and tree shaking
@@ -237,7 +237,7 @@ try {
 
 Refer to these docs for detailed information:
 
-- **docs/REDUX_MIGRATION_GUIDE.md** - Redux integration with React 18
+- **docs/REDUX_MIGRATION_GUIDE.md** - Redux integration with React 16+
 - **docs/ESLINT_PRETTIER_UPDATE.md** - Code quality tooling
 - **docs/JEST_ENHANCEMENTS.md** - Testing configuration
 - **docs/SERVER_IMPROVEMENTS_COMPLETE.md** - SSR enhancements

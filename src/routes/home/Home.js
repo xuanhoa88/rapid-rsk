@@ -27,9 +27,9 @@ function Home({ loading, payload }) {
                 <h3 className={s.featureTitle}>Lightning Fast</h3>
               </div>
               <p className={s.featureDesc}>
-                Server-side rendering with React 18, automatic code splitting,
+                Server-side rendering with React 16+, automatic code splitting,
                 and optimized Webpack 5 configuration for instant page loads and
-                superior performance
+                superior performance. Supports React 16, 17, and 18+
               </p>
             </div>
             <div className={s.featureCard}>

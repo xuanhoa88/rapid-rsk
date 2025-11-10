@@ -24,8 +24,8 @@ const initialState = {
   runtime: {
     initialNow: Date.now(),
     availableLocales: {
-      'en-US': { name: 'English (US)' },
-      'vi-VN': { name: 'Tiếng Việt' },
+      'en-US': 'English (US)',
+      'vi-VN': 'Tiếng Việt',
     },
     appName: 'React Starter Kit',
     appDescription: 'Boilerplate for React.js web applications',

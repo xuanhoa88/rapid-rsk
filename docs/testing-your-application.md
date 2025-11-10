@@ -16,7 +16,7 @@ React Starter Kit uses a modern testing stack for comprehensive test coverage:
 ✅ **Code Coverage** - Built-in coverage reports  
 ✅ **Watch Mode** - Re-run tests on file changes  
 ✅ **Mocking** - Easy mocking of modules and functions  
-✅ **React 18 Compatible** - Full support for modern React  
+✅ **React 16+ Compatible** - Full support for React 16, 17, and 18+  
 
 ### Test Commands
 
@@ -105,7 +105,8 @@ const initialState = {
   runtime: {
     // Runtime variables
     availableLocales: {
-      'en-US': { name: 'English (US)' },
+      'en-US': 'English (US)',
+      'vi-VN': 'Tiếng Việt',
     },
   },
   intl: {
@@ -206,7 +207,7 @@ const mockStore = configureStore(middlewares);
 
 test('component with Redux', () => {
   const initialState = {
-    runtime: { availableLocales: { 'en-US': { name: 'English (US)' } } }, // Runtime variables
+    runtime: { availableLocales: { 'en-US': 'English (US)', 'vi-VN': 'Tiếng Việt' } },
     intl: { locale: 'en-US' },
   };
   

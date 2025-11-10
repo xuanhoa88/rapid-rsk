@@ -127,8 +127,6 @@
   display: grid;
   grid-template-columns: 1fr;
   gap: var(--spacing-6);
-  max-width: 900px;
-  margin: 0 auto;
 }
 
 .newsItem {
@@ -355,7 +353,7 @@
   }
 
   .newsGrid {
-    gap: var(--spacing-3);
+    gap: var(--spacing-4);
   }
 
   .newsItem {

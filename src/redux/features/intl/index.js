@@ -10,14 +10,13 @@ export { setLocale } from './actions';
 
 // Public API - Constants (for external use if needed)
 export {
+  LOCALE_COOKIE_MAX_AGE,
+  LOCALE_COOKIE_NAME,
   SET_LOCALE_START,
   SET_LOCALE_SUCCESS,
   SET_LOCALE_ERROR,
   SET_LOCALE_FALLBACK,
 } from './constants';
-
-// Public API - Reducer
-export { default } from './reducer'; // Default export for rootReducer
 
 // Public API - Selectors
 export {
@@ -27,3 +26,6 @@ export {
   getLocaleMessages,
   getLocaleFallback,
 } from './reducer';
+
+// Public API - Reducer
+export { default } from './reducer';

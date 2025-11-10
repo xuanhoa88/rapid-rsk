@@ -6,18 +6,13 @@
  */
 
 import {
+  LOCALE_COOKIE_MAX_AGE,
+  LOCALE_COOKIE_NAME,
   SET_LOCALE_ERROR,
   SET_LOCALE_FALLBACK,
   SET_LOCALE_START,
   SET_LOCALE_SUCCESS,
 } from './constants';
-
-// =============================================================================
-// CONSTANTS
-// =============================================================================
-
-const LOCALE_COOKIE_MAX_AGE = 365 * 24 * 60 * 60; // 1 year in seconds
-const LOCALE_COOKIE_NAME = 'lang';
 
 // =============================================================================
 // UTILITIES
@@ -49,7 +44,7 @@ function setLocaleCookie(locale) {
 function updateLocaleUrl(locale, navigator) {
   if (!isBrowser() || !navigator) return;
 
-  navigator.navigateTo(`?lang=${locale}`);
+  navigator.navigateTo(`?${LOCALE_COOKIE_NAME}=${locale}`);
 }
 
 // =============================================================================
@@ -81,54 +76,55 @@ function updateLocaleUrl(locale, navigator) {
  */
 export function setLocale(locale) {
   return async (dispatch, getState, { navigator, i18n }) => {
-    // Get available locales from runtime variables in Redux store
     const state = getState();
-    const availableLocales =
-      (state.runtime && state.runtime.availableLocales) || {};
-    const availableLocaleCodes = Object.keys(availableLocales);
-
-    // Validate locale parameter
-    if (!locale || typeof locale !== 'string') {
-      console.error('Invalid locale (not a string):', locale);
-      return null;
-    }
-
-    // Check if locale is available
-    if (
-      availableLocaleCodes.length > 0 &&
-      !availableLocaleCodes.includes(locale)
-    ) {
-      const requestedLocale = locale;
-      const fallbackLocale = availableLocaleCodes[0] || 'en-US';
-
-      console.warn(
-        `Locale "${requestedLocale}" is not available. Available locales:`,
-        availableLocaleCodes,
-      );
-      console.info(`Falling back to locale: ${fallbackLocale}`);
-
-      // Dispatch fallback action for error handling in components
-      dispatch({
-        type: SET_LOCALE_FALLBACK,
-        payload: {
-          requestedLocale,
-          fallbackLocale,
-          availableLocaleCodes,
-        },
-      });
-
-      // Use fallback locale
-      // eslint-disable-next-line no-param-reassign
-      locale = fallbackLocale;
-    }
-
-    // Start locale change
-    dispatch({
-      type: SET_LOCALE_START,
-      payload: { locale },
-    });
 
     try {
+      // Get available locales from runtime variables in Redux store
+      const availableLocales =
+        (state.runtime && state.runtime.availableLocales) || {};
+      const availableLocaleCodes = Object.keys(availableLocales);
+
+      // Validate locale parameter
+      if (!locale || typeof locale !== 'string') {
+        console.error('Invalid locale (not a string):', locale);
+        return null;
+      }
+
+      // Check if locale is available
+      if (
+        availableLocaleCodes.length > 0 &&
+        !availableLocaleCodes.includes(locale)
+      ) {
+        const requestedLocale = locale;
+        const fallbackLocale = availableLocaleCodes[0] || 'en-US';
+
+        console.warn(
+          `Locale "${requestedLocale}" is not available. Available locales:`,
+          availableLocaleCodes,
+        );
+        console.info(`Falling back to locale: ${fallbackLocale}`);
+
+        // Dispatch fallback action for error handling in components
+        dispatch({
+          type: SET_LOCALE_FALLBACK,
+          payload: {
+            requestedLocale,
+            fallbackLocale,
+            availableLocaleCodes,
+          },
+        });
+
+        // Use fallback locale
+        // eslint-disable-next-line no-param-reassign
+        locale = fallbackLocale;
+      }
+
+      // Start locale change
+      dispatch({
+        type: SET_LOCALE_START,
+        payload: { locale },
+      });
+
       // Change i18next language using helper
       await i18n.changeLanguage(locale);
 

@@ -26,10 +26,10 @@ router.get('/', (req, res) => {
       },
       {
         id: 2,
-        title: 'Server-Side Rendering with React 18',
+        title: 'Server-Side Rendering with React 16+',
         link: 'https://react.dev/blog/2022/03/29/react-v18',
         contentSnippet:
-          'Built with React 18 and SSR support for improved performance and SEO. Features automatic code splitting, lazy loading, and optimized bundle sizes for faster page loads.',
+          'Built with React 16+ (supports React 16, 17, and 18+) and SSR support for improved performance and SEO. Features automatic code splitting, lazy loading, and optimized bundle sizes for faster page loads.',
       },
       {
         id: 3,
@@ -57,7 +57,7 @@ router.get('/', (req, res) => {
         title: 'React Starter Kit - Production Ready',
         link: 'https://github.com/xuanhoa88/rapid-rsk',
         contentSnippet:
-          'Isomorphic web app boilerplate with Node.js, Express, React 18, Redux, Webpack 5, CSS Modules, Hot Module Replacement, and comprehensive testing setup.',
+          'Isomorphic web app boilerplate with Node.js, Express, React 16+ (supports React 16, 17, and 18+), Redux, Webpack 5, CSS Modules, Hot Module Replacement, and comprehensive testing setup.',
       },
     ],
   };

@@ -148,7 +148,7 @@ async function onLocationChange(location, action) {
     // Render the route component
     const appElement = <App context={context}>{route.component}</App>;
 
-    // Use React 18 createRoot API
+    // Use React 18+ createRoot API (falls back to ReactDOM.render for React 16/17)
     if (!root) {
       root = createRoot(container);
     }

@@ -9,14 +9,23 @@ import bodyParser from 'body-parser';
 import cookieParser from 'cookie-parser';
 import express from 'express';
 import expressProxy from 'express-http-proxy';
-import expressJwt, { UnauthorizedError as Jwt401Error } from 'express-jwt';
+import {
+  expressjwt as expressJwt,
+  UnauthorizedError as Jwt401Error,
+} from 'express-jwt';
 import requestLanguage from 'express-request-language';
 import { ChunkExtractor } from '@loadable/server';
 import nodeFetch from 'node-fetch';
 import path from 'path';
 import PrettyError from 'pretty-error';
 import ReactDOM from 'react-dom/server';
-import { configureStore, setLocale, setRuntimeVariable } from './redux';
+import {
+  configureStore,
+  LOCALE_COOKIE_MAX_AGE,
+  LOCALE_COOKIE_NAME,
+  setLocale,
+  setRuntimeVariable,
+} from './redux';
 import { apiModels, apiRoutes } from './api';
 import App from './components/App';
 import Html from './components/Html';
@@ -290,10 +299,10 @@ app.use(cookieParser());
 app.use(
   requestLanguage({
     languages: Object.keys(AVAILABLE_LOCALES),
-    queryName: 'lang',
+    queryName: LOCALE_COOKIE_NAME,
     cookie: {
-      name: 'lang',
-      options: { path: '/', maxAge: 3650 * 24 * 3600 * 1000 },
+      name: LOCALE_COOKIE_NAME,
+      options: { path: '/', maxAge: LOCALE_COOKIE_MAX_AGE * 1000 }, // Convert seconds to milliseconds
       url: '/lang/{language}',
     },
   }),
@@ -308,6 +317,7 @@ app.use(bodyParser.json());
 app.use(
   expressJwt({
     secret: process.env.RSK_JWT_SECRET,
+    algorithms: ['HS256'],
     credentialsRequired: false,
     getToken: req => req.cookies.id_token,
   }),

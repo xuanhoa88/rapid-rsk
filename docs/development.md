@@ -2,6 +2,28 @@
 
 This guide covers the day-to-day development workflow for React Starter Kit.
 
+## 📦 Technology Stack
+
+### Core Dependencies
+
+- **React**: 18.3.1 (supports React 16+)
+- **Redux**: 4.2.1 with React-Redux 7.2.9
+- **Express**: 4.21.1 (Node.js 16+ compatible)
+- **i18next**: 23.15.2 with react-i18next 14.1.3
+
+### Build Tools
+
+- **Webpack**: 5.96.0
+- **Babel**: 7.28.x
+- **PostCSS**: 6.0.20 with Autoprefixer 10.4.20
+- **Jest**: 24.9.0
+- **ESLint**: 8.57.0
+
+### Node.js Requirements
+
+- **Node.js**: >= 16.0.0
+- **npm**: >= 7.0.0
+
 ## 🚀 Starting Development
 
 ### First Time Setup
@@ -18,6 +40,7 @@ npm start
 ```
 
 The development server will:
+
 - Start on `http://localhost:3000`
 - Enable Hot Module Replacement (HMR)
 - Watch for file changes
@@ -32,10 +55,10 @@ npm start
 # In another terminal, run tests in watch mode
 npm run test:watch
 
-# Run linting
+# Run linting (JavaScript + CSS)
 npm run lint
 
-# Auto-fix linting issues
+# Auto-fix linting issues (JavaScript + CSS)
 npm run fix
 ```
 
@@ -63,6 +86,7 @@ HMR updates modules in the browser without a full page reload, preserving applic
 ### Troubleshooting HMR
 
 **HMR not working?**
+
 ```bash
 # Check browser console for errors
 # Restart development server
@@ -70,6 +94,7 @@ npm start
 ```
 
 **State not preserved?**
+
 - Some changes require full reload (adding hooks, changing exports)
 - Use React DevTools to inspect state
 
@@ -78,19 +103,21 @@ npm start
 ### Adding a New Page
 
 1. **Create route directory:**
+
 ```bash
 mkdir src/routes/my-page
 ```
 
 2. **Create route files:**
+
 ```javascript
 // src/routes/my-page/index.js
 export default {
   path: '/my-page',
-  
+
   async action({ fetch }) {
     const data = await fetch('/api/my-data');
-    
+
     return {
       title: 'My Page',
       description: 'My page description',
@@ -109,7 +136,7 @@ import s from './MyPage.css';
 function MyPage({ data }) {
   useStyles(s);
   const { t } = useTranslation();
-  
+
   return (
     <div className={s.root}>
       <h1>{t('myPage.title')}</h1>
@@ -129,6 +156,7 @@ export default MyPage;
 ```
 
 3. **Register route:**
+
 ```javascript
 // src/routes/index.js
 import myPage from './my-page';
@@ -147,11 +175,13 @@ export default {
 ### Adding a New Component
 
 1. **Create component directory:**
+
 ```bash
 mkdir src/components/MyComponent
 ```
 
 2. **Create component files:**
+
 ```javascript
 // src/components/MyComponent/index.js
 import PropTypes from 'prop-types';
@@ -160,7 +190,7 @@ import s from './MyComponent.css';
 
 function MyComponent({ title, children }) {
   useStyles(s);
-  
+
   return (
     <div className={s.root}>
       <h2 className={s.title}>{title}</h2>
@@ -195,6 +225,7 @@ export default MyComponent;
 ```
 
 3. **Add tests:**
+
 ```javascript
 // src/components/MyComponent/MyComponent.test.js
 import { render, screen } from '@testing-library/react';
@@ -202,7 +233,7 @@ import MyComponent from './index';
 
 describe('MyComponent', () => {
   it('renders title', () => {
-    render(<MyComponent title="Test Title" />);
+    render(<MyComponent title='Test Title' />);
     expect(screen.getByText('Test Title')).toBeInTheDocument();
   });
 });
@@ -211,6 +242,7 @@ describe('MyComponent', () => {
 ### Adding an API Endpoint
 
 1. **Create API route:**
+
 ```javascript
 // src/api/routes/myEndpoint.js
 import { Router } from 'express';
@@ -230,6 +262,7 @@ export default router;
 ```
 
 2. **Register route:**
+
 ```javascript
 // src/api/routes/index.js
 import myEndpoint from './myEndpoint';
@@ -238,6 +271,7 @@ router.use('/my-endpoint', myEndpoint);
 ```
 
 3. **Use in component:**
+
 ```javascript
 async action({ fetch }) {
   const data = await fetch('/api/my-endpoint');
@@ -262,7 +296,7 @@ All CSS files are automatically scoped:
 ```javascript
 import s from './MyComponent.css';
 
-<button className={s.button}>Click</button>
+<button className={s.button}>Click</button>;
 ```
 
 ### Global Styles
@@ -281,7 +315,7 @@ For global styles, use `:global`:
 /* Nesting */
 .root {
   color: black;
-  
+
   & .nested {
     color: gray;
   }
@@ -307,6 +341,7 @@ For global styles, use `:global`:
 ### Adding Translations
 
 1. **Add to translation files:**
+
 ```json
 // src/i18n/translations/en-US.json
 {
@@ -318,12 +353,13 @@ For global styles, use `:global`:
 ```
 
 2. **Use in components:**
+
 ```javascript
 import { useTranslation } from 'react-i18next';
 
 function MyComponent() {
   const { t } = useTranslation();
-  
+
   return (
     <div>
       <h1>{t('myFeature.title')}</h1>
@@ -336,7 +372,7 @@ function MyComponent() {
 ### Extracting Messages
 
 ```bash
-# Extract i18n messages from code
+# Extract and update i18n translation files
 npm run i18n
 ```
 
@@ -348,13 +384,19 @@ npm run i18n
 # Run all tests
 npm test
 
-# Watch mode
+# Watch mode (re-runs on file changes)
 npm run test:watch
 
-# Coverage
+# Generate coverage report
 npm run test:coverage
 
-# Specific file
+# Open coverage report in browser
+npm run coverage
+
+# CI mode (for continuous integration)
+npm run test:ci
+
+# Run specific test file
 npm test -- MyComponent.test.js
 ```
 
@@ -366,14 +408,14 @@ import MyComponent from './index';
 
 describe('MyComponent', () => {
   it('renders correctly', () => {
-    render(<MyComponent title="Test" />);
+    render(<MyComponent title='Test' />);
     expect(screen.getByText('Test')).toBeInTheDocument();
   });
-  
+
   it('handles click', () => {
     const handleClick = jest.fn();
     render(<MyComponent onClick={handleClick} />);
-    
+
     fireEvent.click(screen.getByRole('button'));
     expect(handleClick).toHaveBeenCalled();
   });
@@ -396,21 +438,55 @@ describe('MyComponent', () => {
 3. **Use debug console** for evaluation
 
 Configuration in `.vscode/launch.json`:
+
 ```json
 {
-  "type": "node",
-  "request": "launch",
-  "name": "Debug Server",
-  "program": "${workspaceFolder}/tools/run.js",
-  "args": ["start"]
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Debug Server",
+      "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/babel-node",
+      "program": "${workspaceFolder}/tools/run.js",
+      "args": ["start"],
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen"
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Debug Build",
+      "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/babel-node",
+      "program": "${workspaceFolder}/tools/run.js",
+      "args": ["build"],
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen"
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Debug Tests",
+      "program": "${workspaceFolder}/node_modules/.bin/jest",
+      "args": ["--runInBand", "--no-cache"],
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen"
+    }
+  ]
 }
 ```
+
+**Available Debug Configurations:**
+
+- **Debug Server** - Debug the development server
+- **Debug Build** - Debug the production build process
+- **Debug Tests** - Debug Jest tests in VS Code
 
 ### Server-Side Debugging
 
 ```bash
 # Start with Node inspector
-node --inspect tools/run.js start
+babel-node --inspect tools/run start
 
 # Open chrome://inspect in Chrome
 # Click "inspect" on your Node process
@@ -427,20 +503,26 @@ npm run lint:js
 # Lint CSS
 npm run lint:css
 
-# Lint everything
+# Lint everything (JavaScript + CSS)
 npm run lint
 
-# Auto-fix issues
+# Auto-fix JavaScript issues
+npm run fix:js
+
+# Auto-fix CSS issues
+npm run fix:css
+
+# Auto-fix all issues (JavaScript + CSS)
 npm run fix
 ```
 
 ### Formatting
 
 ```bash
-# Format all files
+# Format all files with Prettier
 npm run format
 
-# Check formatting
+# Check formatting without making changes
 npm run format:check
 ```
 
@@ -449,10 +531,10 @@ npm run format:check
 Husky runs linting on staged files before commit:
 
 ```bash
-# Configured in .lintstagedrc.js
+# Configured via lint-staged
 git add .
 git commit -m "My changes"
-# Linting runs automatically
+# Linting runs automatically via precommit hook
 ```
 
 ## 🔄 Git Workflow

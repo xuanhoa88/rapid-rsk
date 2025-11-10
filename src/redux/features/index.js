@@ -26,6 +26,8 @@ export {
   // Actions
   setLocale,
   // Constants
+  LOCALE_COOKIE_MAX_AGE,
+  LOCALE_COOKIE_NAME,
   SET_LOCALE_START,
   SET_LOCALE_SUCCESS,
   SET_LOCALE_ERROR,

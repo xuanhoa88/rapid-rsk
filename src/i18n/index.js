@@ -23,9 +23,10 @@ const LOCALE_CONFIGS = Object.freeze({
 });
 
 // Public API: Available locales without translations (for Redux/components)
+// Simple map: { 'en-US': 'English (US)', 'vi-VN': 'Tiếng Việt' }
 export const AVAILABLE_LOCALES = Object.freeze(
   Object.keys(LOCALE_CONFIGS).reduce((acc, key) => {
-    acc[key] = { name: LOCALE_CONFIGS[key].name };
+    acc[key] = LOCALE_CONFIGS[key].name || key;
     return acc;
   }, {}),
 );

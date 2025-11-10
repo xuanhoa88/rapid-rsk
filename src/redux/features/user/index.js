@@ -33,9 +33,6 @@ export {
   UPDATE_USER,
 } from './constants';
 
-// Public API - Reducer
-export { default } from './reducer';
-
 // Public API - Selectors
 export {
   getUser,
@@ -45,3 +42,6 @@ export {
   getUserEmail,
   getUserDisplayName,
 } from './reducer';
+
+// Public API - Reducer
+export { default } from './reducer';
