@@ -30,6 +30,11 @@ foundation*.css
 bulma*.css
 tailwind*.css
 
+# Lock files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
 # Logs
 *.log
 

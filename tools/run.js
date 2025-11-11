@@ -90,6 +90,7 @@ const AVAILABLE_TASKS = [
   {
     name: 'build',
     description: 'Build the project for production',
+    processEnv: { NODE_ENV: process.env.NODE_ENV || 'production' },
   },
   {
     name: 'clean',
@@ -98,6 +99,7 @@ const AVAILABLE_TASKS = [
   {
     name: 'start',
     description: 'Start the project for development',
+    processEnv: { NODE_ENV: process.env.NODE_ENV || 'development' },
   },
   {
     name: 'i18n',
@@ -139,15 +141,24 @@ function executeTask(taskName) {
 
     logDebug(`Spawning task: ${taskName}`);
 
+    // Get task-specific environment variables (if any)
+    const taskConfig = AVAILABLE_TASKS.find(task => task.name === taskName);
+    const taskEnv = taskConfig && taskConfig.processEnv;
+
+    // Merge task-specific environment variables with process.env
+    const processEnv = taskEnv
+      ? Object.assign({}, process.env, taskEnv)
+      : process.env;
+
     // Spawn task in child process using babel-node
-    const child = spawn('babel-node', [taskPath], {
+    const taskProcess = spawn('babel-node', [taskPath], {
       stdio: 'inherit', // Inherit stdin, stdout, stderr
-      env: { ...process.env }, // Pass environment with task-specific overrides
+      env: processEnv,
       cwd: config.ROOT_DIR,
     });
 
-    // Handle child process exit
-    child.on('exit', (code, signal) => {
+    // Handle task process exit
+    taskProcess.on('exit', (code, signal) => {
       if (signal) {
         reject(new Error(`Task '${taskName}' killed by signal ${signal}`));
       } else if (code !== 0) {
@@ -157,8 +168,8 @@ function executeTask(taskName) {
       }
     });
 
-    // Handle child process errors
-    child.on('error', error => {
+    // Handle task process errors
+    taskProcess.on('error', error => {
       reject(new Error(`Failed to spawn task '${taskName}': ${error.message}`));
     });
   });

@@ -4,6 +4,9 @@
 node_modules/
 .pnp
 .pnp.js
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
 
 # Compiled output
 build/
@@ -61,6 +64,9 @@ web_modules/
 # Optional stylelint cache
 .stylelintcache
 
+# Prettier cache
+.prettiercache
+
 # Microbundle cache
 .rpt2_cache/
 .rts2_cache_cjs/
@@ -108,9 +114,23 @@ temp/
 
 # Editors and IDEs
 .idea/
+.vscode/
 *.swp
 *.swo
 *~
+*.sublime-project
+*.sublime-workspace
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.tmproj
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
 
 # OS generated files
 .DS_Store
@@ -154,6 +174,10 @@ Thumbs.db
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# Docker
+docker-compose.override.yml
+*.dockerfile
 
 # Misc
 .DS_Store

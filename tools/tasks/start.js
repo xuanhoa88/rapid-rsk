@@ -127,40 +127,76 @@ function configureWebpackForDev(config, isClient = true) {
 }
 
 /**
- * HMR update check
+ * Get server module from bundle
+ * Clears require cache and loads fresh server bundle
+ *
+ * @returns {Object} Server module with initializeApp and startAppListening functions
  */
-function checkForUpdate() {
-  if (!app || !app.hot || app.hot.status() !== 'idle') {
-    return Promise.resolve();
+function getServerModule() {
+  // Clear require cache to get fresh bundle
+  delete require.cache[require.resolve(SERVER_BUNDLE_PATH)];
+
+  // Load server bundle
+  const serverBundle = require(SERVER_BUNDLE_PATH);
+
+  // Return clean object with named exports
+  return {
+    initializeApp: serverBundle.default,
+    startAppListening: serverBundle.startServer,
+  };
+}
+
+/**
+ * Get the hot module from require.cache
+ * @returns {Object|null} Hot module or null if not available
+ */
+function getHotModule() {
+  const serverModule = require.cache[require.resolve(SERVER_BUNDLE_PATH)];
+  return serverModule && serverModule.hot ? serverModule.hot : null;
+}
+
+/**
+ * Apply HMR updates or reload app on failure
+ * Simple single-pass update check
+ *
+ * @param {Object} expressApp - Express app instance
+ * @param {string} staticPath - Path to static files directory
+ * @returns {Promise<void>}
+ */
+async function checkForUpdate(expressApp, staticPath) {
+  const hot = getHotModule();
+
+  // Skip if HMR not available or not ready
+  if (!hot || hot.status() !== 'idle') {
+    return;
   }
 
-  return app.hot
-    .check(true)
-    .then(updatedModules => {
-      if (!updatedModules || updatedModules.length === 0) {
-        return;
-      }
+  try {
+    // Apply HMR updates
+    const updatedModules = await hot.check(true);
 
-      if (isVerbose()) {
-        logInfo(`🔥 HMR: Updated ${updatedModules.length} module(s)`);
-      }
+    // Log if updates were applied
+    if (updatedModules && updatedModules.length > 0 && isVerbose()) {
+      logInfo(`🔥 HMR: Updated ${updatedModules.length} module(s)`);
+    }
+  } catch (error) {
+    // On HMR failure, reload entire app
+    const currentHot = getHotModule();
+    const status = currentHot && currentHot.status();
 
-      return checkForUpdate();
-    })
-    .catch(() => {
-      if (app.hot && ['abort', 'fail'].includes(app.hot.status())) {
-        // Reload the app
-        try {
-          delete require.cache[require.resolve(SERVER_BUNDLE_PATH)];
-          app = require(SERVER_BUNDLE_PATH).default;
-          if (isVerbose()) {
-            logInfo('🔄 HMR: App reloaded');
-          }
-        } catch (reloadError) {
-          logError(`HMR reload failed: ${reloadError.message}`);
-        }
+    if (status === 'abort' || status === 'fail') {
+      logInfo('⚠️  HMR failed, reloading app...');
+      try {
+        const serverModule = getServerModule();
+        app = await serverModule.initializeApp(expressApp, staticPath);
+        logInfo('✅ App reloaded');
+      } catch (reloadError) {
+        logError(`App reload failed: ${reloadError.message}`);
       }
-    });
+    } else if (isVerbose()) {
+      logError(`HMR error: ${error.message}`);
+    }
+  }
 }
 
 /**
@@ -207,34 +243,13 @@ function setupWebpackMiddleware(server, clientCompiler) {
 }
 
 /**
- * Setup SSR middleware that delegates to the inner app
+ * Setup SSR middleware compilation hooks
+ * Note: In development, routes are set up directly by initializeApp()
+ * No delegation middleware needed - server and app are the same Express instance
  */
-function setupSSRMiddleware(server, serverCompiler) {
-  let appReady = false;
-
-  // Mark app as not ready during compilation
-  serverCompiler.hooks.compile.tap('server', () => {
-    appReady = false;
-  });
-
-  // Delegate to the inner SSR app
-  server.use((req, res, next) => {
-    if (appReady && app && typeof app.handle === 'function') {
-      app.handle(req, res, next);
-    } else {
-      res
-        .status(503)
-        .send(
-          '<!DOCTYPE html>' +
-            '<html><head><title>Loading...</title></head>' +
-            '<body><h1>Server is compiling...</h1>' +
-            '<p>Please wait a moment and refresh.</p></body></html>',
-        );
-    }
-  });
-
-  // Watch server compiler for changes
-  serverCompiler.watch(serverConfig.watchOptions, (error, stats) => {
+function setupSSRMiddleware(server, serverCompiler, staticPath) {
+  // Watch server compiler for changes and auto-reload app
+  serverCompiler.watch(serverConfig.watchOptions, async (error, stats) => {
     if (error) {
       logError(`Server watch error: ${error.message}`);
       return;
@@ -249,50 +264,15 @@ function setupSSRMiddleware(server, serverCompiler) {
       return;
     }
 
-    if (app) {
-      delete require.cache[require.resolve(SERVER_BUNDLE_PATH)];
-      checkForUpdate()
-        .then(() => {
-          appReady = true;
-        })
-        .catch(err => {
-          logError(`HMR update failed: ${err.message}`);
-          appReady = false;
-        });
+    // Compilation successful - apply HMR updates if app exists
+    try {
+      if (app) {
+        // App exists - try HMR update
+        await checkForUpdate(server, staticPath);
+      }
+    } catch (err) {
+      logError(`HMR update failed: ${err.message}`);
     }
-  });
-
-  return {
-    setAppReady: () => {
-      appReady = true;
-    },
-  };
-}
-
-/**
- * Start Express server
- */
-function startExpressServer(server) {
-  return new Promise((resolve, reject) => {
-    const httpServer = server.listen(
-      DEV_CONFIG.port,
-      DEV_CONFIG.host,
-      error => {
-        if (error) {
-          reject(
-            new BuildError(`Express server failed: ${error.message}`, {
-              suggestion: 'Check if port is available',
-              port: DEV_CONFIG.port,
-            }),
-          );
-        } else {
-          logInfo('🚀 Server started!');
-          logInfo(`📡 Server: http://${DEV_CONFIG.host}:${DEV_CONFIG.port}/`);
-          logInfo(`🌍 Environment: ${process.env.NODE_ENV}`);
-          resolve(httpServer);
-        }
-      },
-    );
   });
 }
 
@@ -370,22 +350,18 @@ export default async function main() {
     // Clean build directory
     await clean();
 
-    // Setup Express server
+    // Setup webpack compilers
+    const { clientCompiler, serverCompiler } = setupWebpackCompilers();
+
+    // Create Express server instance
+    // This will be passed to the SSR app for middleware setup
     server = express();
 
-    // Serve static files from source public/ directory in development
-    // This is needed because:
-    // 1. The SSR app (src/server.js) serves from build/public/ (production path)
-    // 2. In development, build/public/ doesn't exist until after compilation
-    // 3. This middleware serves source public/ files before SSR app is loaded
-    server.use(express.static(config.PUBLIC_DIR));
-
-    // Setup webpack
-    const { clientCompiler, serverCompiler } = setupWebpackCompilers();
+    // Setup webpack dev middleware (HMR, hot reload)
     setupWebpackMiddleware(server, clientCompiler);
-    const { setAppReady } = setupSSRMiddleware(server, serverCompiler);
+    setupSSRMiddleware(server, serverCompiler, config.PUBLIC_DIR);
 
-    // Wait for initial compilation
+    // Wait for initial webpack compilation
     logInfo('⏳ Waiting for initial compilation...');
     await Promise.all([
       createCompilationPromise('client', clientCompiler),
@@ -393,12 +369,16 @@ export default async function main() {
     ]);
     logInfo('✅ Initial compilation completed');
 
-    // Load SSR app
-    app = require(SERVER_BUNDLE_PATH).default;
-    setAppReady();
+    // Load and initialize SSR app (after compilation)
+    const serverModule = getServerModule();
+    app = await serverModule.initializeApp(server, config.PUBLIC_DIR);
 
-    // Start Express server
-    await startExpressServer(server);
+    // Start server listening
+    await serverModule.startAppListening(
+      server,
+      DEV_CONFIG.port,
+      DEV_CONFIG.host,
+    );
 
     // Start BrowserSync proxy
     browserSyncInstance = await startBrowserSync();

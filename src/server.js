@@ -15,9 +15,9 @@ import {
 } from 'express-jwt';
 import requestLanguage from 'express-request-language';
 import { ChunkExtractor } from '@loadable/server';
+import Youch from 'youch';
 import nodeFetch from 'node-fetch';
 import path from 'path';
-import PrettyError from 'pretty-error';
 import ReactDOM from 'react-dom/server';
 import {
   configureStore,
@@ -33,7 +33,6 @@ import { createFetch } from './createFetch';
 import { AVAILABLE_LOCALES, getI18nInstance } from './i18n';
 import * as navigator from './navigator';
 import router from './routes';
-import ErrorPage from './routes/error/ErrorPage';
 
 // =============================================================================
 // GLOBAL ERROR HANDLERS
@@ -51,157 +50,103 @@ process.on('uncaughtException', err => {
   process.exit(1);
 });
 
-// Configure global navigator for CSS tooling
-global.navigator = global.navigator || {};
-global.navigator.userAgent = global.navigator.userAgent || 'all';
+// Configure global navigator for CSS tooling (required by some CSS-in-JS libraries)
+if (!global.navigator) {
+  global.navigator = { userAgent: 'all' };
+}
 
-// =============================================================================
-// HELPER FUNCTIONS
-// =============================================================================
+// Environment variable defaults
+const config = {
+  port: parseInt(process.env.RSK_PORT, 10) || 3000,
+  jwtSecret: process.env.RSK_JWT_SECRET,
+  jwtExpiresIn: process.env.RSK_JWT_EXPIRES_IN || '7d',
+  trustProxy: process.env.RSK_TRUST_PROXY || 'loopback',
+  apiProxyUrl: process.env.RSK_API_PROXY_URL,
+  apiBaseUrl: process.env.RSK_API_BASE_URL || '',
+  appName: process.env.RSK_APP_NAME || 'React Starter Kit',
+  appDescription:
+    process.env.RSK_APP_DESCRIPTION ||
+    'Boilerplate for React.js web applications',
+};
 
-/**
- * Get i18n instance for error page rendering
- */
+// i18n instance
 const i18n = getI18nInstance();
 
 /**
- * Create fetch client for SSR with localhost base URL
- * @param {Object} req - Express request
- * @returns {Function} Fetch client
+ * Create fetch client for SSR
+ *
+ * @param {Object} req - Express request object
+ * @returns {Function} Configured fetch client
  */
 function createFetchClient(req) {
   return createFetch(nodeFetch, {
-    baseUrl: `http://localhost:${process.env.RSK_PORT || 3000}`,
+    baseUrl: `http://localhost:${config.port}`,
     cookie: req.headers.cookie,
   });
 }
 
 /**
- * Create enhanced error with request context and original stack
- * @param {string} message - Error message
- * @param {Error} originalError - Original error
- * @param {Object} context - Context (req, route, data)
- * @returns {Error} Enhanced error
+ * Create Redux store for SSR
+ *
+ * @param {Object} req - Express request object
+ * @param {Function} fetch - Fetch client
+ * @returns {Promise<Object>} Configured Redux store
  */
-function createEnhancedError(message, originalError, context = {}) {
-  const error = new Error(message);
-  error.originalError = originalError;
-  error.stack = originalError.stack;
-
-  if (context.req) {
-    error.path = context.req.path;
-    error.method = context.req.method;
-  }
-  if (context.route) {
-    error.route = context.route;
-  }
-  if (context.data) {
-    error.data = {
-      ...context.data,
-      children: '[REDACTED]',
-      appState: '[REDACTED]',
-    };
-  }
-
-  return error;
-}
-
-/**
- * Create Redux store for SSR with user, runtime vars, and locale
- * @param {Object} req - Express request
- * @param {Object} fetch - Fetch client
- * @param {Object} i18n - i18next instance
- * @param {Object} availableLocales - Available locales (from AVAILABLE_LOCALES)
- * @returns {Promise<Object>} Configured store
- */
-async function createReduxStore(req, fetch, i18n, availableLocales) {
-  // Create store with initial user state
+async function createReduxStore(req, fetch) {
+  // Initialize store with user from JWT
   const store = configureStore(
     { user: req.user || null },
     { fetch, navigator, i18n },
   );
 
-  // Define all runtime variables
-  // These are dispatched to Redux store and available at state.runtime.*
-  const runtimeVariables = {
-    initialNow: Date.now(), // Timestamp for SSR consistency
-    availableLocales, // Available locales for language switcher (from i18n/AVAILABLE_LOCALES)
-    appName: process.env.RSK_APP_NAME || 'React Starter Kit',
-    appDescription:
-      process.env.RSK_APP_DESCRIPTION ||
-      'Boilerplate for React.js web applications',
-  };
-
-  // Dispatch all runtime variables at once
-  store.dispatch(setRuntimeVariable(runtimeVariables));
+  // Set runtime variables
+  store.dispatch(
+    setRuntimeVariable({
+      initialNow: Date.now(),
+      availableLocales: AVAILABLE_LOCALES,
+      appName: config.appName,
+      appDescription: config.appDescription,
+    }),
+  );
 
   // Set locale from request
-  const locale = req.language || 'en-US';
-  await store.dispatch(setLocale(locale));
+  await store.dispatch(setLocale(req.language || 'en-US'));
 
   return store;
 }
 
 /**
- * Extract HTML from React element's dangerouslySetInnerHTML
+ * Extract HTML from dangerouslySetInnerHTML
+ *
  * @param {Object} element - React element
- * @returns {string|null} HTML content or null
+ * @returns {string|null} HTML string or null
  */
 function getInnerHTML(element) {
-  return (
-    (element &&
-      element.props &&
-      element.props.dangerouslySetInnerHTML &&
-      // eslint-disable-next-line no-underscore-dangle
-      element.props.dangerouslySetInnerHTML.__html) ||
-    null
-  );
+  if (!element || !element.props || !element.props.dangerouslySetInnerHTML) {
+    return null;
+  }
+  // eslint-disable-next-line no-underscore-dangle
+  return element.props.dangerouslySetInnerHTML.__html || null;
 }
 
 /**
- * Render complete HTML page from React component
- * Handles React rendering, chunk extraction, and HTML template generation
- * Supports React 16+ and React 18+
+ * Render React component to HTML
  *
- * @param {Object} params - Rendering parameters
- * @param {Object} params.req - Express request
- * @param {Object} params.store - Redux store
- * @param {Object} params.fetch - Fetch client
- * @param {Object} params.i18n - i18next instance
+ * @param {Object} params - Render parameters
+ * @param {Object} params.context - App context (fetch, store, i18n, locale, pathname, query)
  * @param {Object} params.component - React component to render
- * @param {Object} params.metadata - Page metadata (title, description, image, url, type)
- * @param {Object} params.errorContext - Optional error context for debugging
- * @returns {Promise<string>} Complete HTML document string
- * @throws {Error} Enhanced error if rendering fails
+ * @param {Object} params.metadata - Page metadata (title, description, etc.)
+ * @returns {Promise<string>} Complete HTML document
  */
-async function renderPageToHtml({
-  req,
-  store,
-  fetch,
-  i18n,
-  component,
-  metadata = {},
-  errorContext = {},
-}) {
+async function renderPageToHtml({ context, component, metadata = {} }) {
   try {
-    // Create context for App component
-    const context = {
-      fetch,
-      store,
-      i18n,
-      locale: req.language || 'en-US',
-      pathname: req.path,
-      query: req.query,
-    };
-
-    // Create ChunkExtractor for this request
-    const statsFile = path.resolve(__dirname, 'loadable-stats.json');
+    // Create ChunkExtractor for code splitting
     const extractor = new ChunkExtractor({
-      statsFile,
+      statsFile: path.resolve(__dirname, 'loadable-stats.json'),
       entrypoints: ['client'],
     });
 
-    // Render React app to string with @loadable chunk collection
+    // Render React app with chunk collection
     const jsx = extractor.collectChunks(
       <App context={context}>{component}</App>,
     );
@@ -212,27 +157,21 @@ async function renderPageToHtml({
     const styleElements = extractor.getStyleElements();
     const scriptElements = extractor.getScriptElements();
 
-    // Separate external scripts from inline scripts
-    const externalScripts = scriptElements.filter(element => element.props.src);
+    // Extract loadable state from inline scripts
     const inlineScripts = scriptElements.filter(
       element => element.props.dangerouslySetInnerHTML,
     );
-
-    // Extract loadable state from inline scripts
-    const namedChunksScript = inlineScripts.find(element => {
-      const content = getInnerHTML(element);
-      return content && content.includes('namedChunks');
-    });
-
+    const namedChunksScript = inlineScripts.find(element =>
+      getInnerHTML(element).includes('namedChunks'),
+    );
     const requiredChunksScript = inlineScripts.find(
-      element =>
-        element !== namedChunksScript && element.props.dangerouslySetInnerHTML,
+      element => element !== namedChunksScript,
     );
 
     // Prepare HTML data object for Html component
     const htmlData = {
       ...metadata,
-      // Styles (no ID to hide implementation details)
+      // Styles
       styles: styleElements.map(element => ({
         cssText: getInnerHTML(element) || '',
       })),
@@ -240,9 +179,9 @@ async function renderPageToHtml({
         .map(element => element.props.href)
         .filter(Boolean),
       // Scripts
-      scripts: externalScripts
-        .map(element => element.props.src)
-        .filter(Boolean),
+      scripts: scriptElements
+        .filter(element => element.props.src)
+        .map(element => element.props.src),
       // Loadable state for client-side hydration
       loadableState: {
         requiredChunks: getInnerHTML(requiredChunksScript),
@@ -250,8 +189,8 @@ async function renderPageToHtml({
       },
       // Application state for Redux hydration
       appState: {
-        apiUrl: process.env.RSK_API_BASE_URL || '',
-        reduxState: store.getState(),
+        apiUrl: config.apiBaseUrl,
+        reduxState: context.store.getState(),
       },
       // Rendered React content
       children,
@@ -261,329 +200,253 @@ async function renderPageToHtml({
     const html = ReactDOM.renderToStaticMarkup(<Html {...htmlData} />);
     return `<!doctype html>${html}`;
   } catch (error) {
-    throw createEnhancedError(
-      `Page render failed for ${req.path}: ${error.message}`,
-      error,
-      { req, ...errorContext },
-    );
+    // Re-throw with context
+    error.path = context.pathname;
+    error.message = `Page render failed: ${error.message}`;
+    throw error;
   }
 }
 
 /**
- * Log performance metrics in development
+ * Create page metadata object
+ *
+ * @param {Object} route - Route object
+ * @param {Object} req - Express request object
+ * @returns {Object} Page metadata
  */
-const logPerformance = (req, renderTime, html) => {
-  if (!__DEV__) return;
-
-  const htmlSizeKB = (html.length / 1024).toFixed(2);
-  const metrics = `${renderTime}ms, HTML: ${htmlSizeKB}KB`;
-
-  if (renderTime > 1000) {
-    console.warn(`🐌 Slow render: ${req.path} (${metrics})`);
-  } else if (renderTime > 500) {
-    // eslint-disable-next-line no-console
-    console.log(`⏱️  Render: ${req.path} (${metrics})`);
-  }
-
-  // eslint-disable-next-line no-console
-  console.log(`✅ SSR complete: ${req.method} ${req.path} (${renderTime}ms)`);
-};
-
-// =============================================================================
-// EXPRESS APP SETUP
-// =============================================================================
-
-const app = express();
-app.set('trust proxy', process.env.RSK_TRUST_PROXY || 'loopback');
-
-// =============================================================================
-// MIDDLEWARE
-// =============================================================================
-
-app.use(express.static(path.resolve(__dirname, 'public')));
-app.use(cookieParser());
-app.use(
-  requestLanguage({
-    languages: Object.keys(AVAILABLE_LOCALES),
-    queryName: LOCALE_COOKIE_NAME,
-    cookie: {
-      name: LOCALE_COOKIE_NAME,
-      options: { path: '/', maxAge: LOCALE_COOKIE_MAX_AGE * 1000 }, // Convert seconds to milliseconds
-      url: '/lang/{language}',
-    },
-  }),
-);
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(bodyParser.json());
-
-// =============================================================================
-// AUTHENTICATION
-// =============================================================================
-
-app.use(
-  expressJwt({
-    secret: process.env.RSK_JWT_SECRET,
-    algorithms: ['HS256'],
-    credentialsRequired: false,
-    getToken: req => req.cookies.id_token,
-  }),
-);
-
-app.use((err, req, res, next) => {
-  if (err instanceof Jwt401Error) {
-    console.error('🔒 JWT auth error:', req.path);
-    res.clearCookie('id_token');
-  }
-  next(err);
-});
-
-app.set('jwtSecret', process.env.RSK_JWT_SECRET);
-app.set('jwtExpiresIn', process.env.RSK_JWT_EXPIRES_IN || '7d');
-
-// =============================================================================
-// API MIDDLEWARE
-// =============================================================================
-// Request flow: Local API → External API → React SSR (catch-all)
-
-// 1. Local API routes (checked FIRST)
-app.use('/api', apiRoutes);
-
-// 2. External API proxy (checked SECOND, only if RSK_API_PROXY_URL is set)
-if (process.env.RSK_API_PROXY_URL) {
-  app.use(
-    '/api',
-    expressProxy(process.env.RSK_API_PROXY_URL, {
-      // Remove /api prefix before forwarding
-      // Example: /api/products → /products
-      proxyReqPathResolver: req => req.url.replace(/^\/api/, ''),
-    }),
-  );
-}
-
-// =============================================================================
-// SERVER-SIDE RENDERING
-// =============================================================================
-// 3. React SSR catch-all (checked LAST for all non-API routes)
-
-app.get('*', async (req, res, next) => {
-  const startTime = Date.now();
-
-  try {
-    // Create fetch client and Redux store
-    const fetch = createFetchClient(req);
-    const store = await createReduxStore(req, fetch, i18n, AVAILABLE_LOCALES);
-    const locale = req.language || 'en-US';
-
-    // Resolve route using IsomorphicRouter
-    // The router matches the pathname against route configuration,
-    // executes route actions, and returns the matched route with component
-    const context = {
-      fetch,
-      store,
-      i18n,
-      locale,
-      pathname: req.path,
-      query: req.query,
-    };
-
-    const route = await router.resolve(context);
-
-    // Handle redirects (e.g., authentication redirects, canonical URLs)
-    if (route.redirect) {
-      res.redirect(route.status || 302, route.redirect);
-      return;
-    }
-
-    // Validate route has a component to render
-    // This should rarely happen as the router's errorHandler catches most issues
-    if (!route.component) {
-      const error = new Error(
-        `Route ${req.path} has no component. Check your route configuration.`,
-      );
-      error.status = 500;
-      throw error;
-    }
-
-    // Prepare metadata for HTML rendering
-    const metadata = {
-      title: route.title, // Already formatted by routes/index.js root action
-      description: route.description, // Already has default from routes/index.js root action
-      image: route.image || null,
-      url: `${req.protocol}://${req.get('host')}${req.path}`,
-      type: route.type || 'website',
-    };
-
-    // Render complete HTML page
-    const reactRenderStart = performance.now();
-    const html = await renderPageToHtml({
-      req,
-      store,
-      fetch,
-      i18n,
-      component: route.component,
-      metadata,
-      errorContext: { route },
-    });
-    const reactRenderTime = performance.now() - reactRenderStart;
-
-    // Log slow React renders in development
-    if (__DEV__ && reactRenderTime > 500) {
-      const emoji = reactRenderTime > 1000 ? '🐌' : '⚠️';
-      console.warn(
-        `${emoji} Slow React render: ${req.path} (${reactRenderTime.toFixed(
-          0,
-        )}ms)`,
-      );
-    }
-    const renderTime = Date.now() - startTime;
-
-    // Send response
-    res.status(route.status || 200);
-    res.send(html);
-
-    // Log performance
-    logPerformance(req, renderTime, html);
-  } catch (err) {
-    console.error('❌ SSR Error:', err.message, 'Path:', req.path);
-    if (__DEV__) console.error(err.stack);
-    next(err);
-  }
-});
-
-// =============================================================================
-// ERROR HANDLING
-// =============================================================================
-
-const pe = new PrettyError();
-pe.skipNodeFiles();
-pe.skipPackage('express');
-
-app.use(async (err, req, res) => {
-  // Create fetch client and Redux store
-  const fetch = createFetchClient(req);
-  const store = await createReduxStore(req, fetch, i18n, AVAILABLE_LOCALES);
-
-  console.error('❌ Server Error:', err.message);
-  console.error('Status:', err.status || 500, 'Path:', req.path);
-
-  if (__DEV__) {
-    console.error(pe.render(err));
-  } else {
-    console.error(err.stack);
-  }
-
-  // Prepare metadata for error page
-  const metadata = {
-    title: 'Internal Server Error',
-    description: err.message,
+function createPageMetadata(route, req) {
+  return {
+    title: route.title,
+    description: route.description,
+    image: route.image || null,
+    url: `${req.protocol}://${req.get('host')}${req.path}`,
+    type: route.type || 'website',
   };
-
-  try {
-    // Render complete error page HTML
-    const html = await renderPageToHtml({
-      req,
-      store,
-      fetch,
-      i18n,
-      component: <ErrorPage error={err} />,
-      metadata,
-      errorContext: { err },
-    });
-
-    res.status(err.status || 500);
-    res.send(html);
-  } catch (renderError) {
-    // Create enhanced error for error page rendering failure
-    const enhancedError = createEnhancedError(
-      `Error page render failed for ${req.path}: ${renderError.message}`,
-      renderError,
-      { req },
-    );
-
-    console.error('❌ Error page rendering failed:', enhancedError.message);
-    console.error('Original error:', err.message);
-    console.error('Render error stack:', renderError.stack);
-
-    // Send minimal fallback HTML when error page rendering fails
-    // This is the last resort - a simple, static HTML page that cannot fail
-    res
-      .status(500)
-      .send(
-        '<!doctype html>' +
-          '<html lang="en">' +
-          '<head>' +
-          '<meta charset="utf-8">' +
-          '<meta name="viewport" content="width=device-width,initial-scale=1">' +
-          `<title>${metadata.title}</title>` +
-          '<style>' +
-          'body{font-family:system-ui,-apple-system,sans-serif;max-width:600px;margin:80px auto;padding:0 20px;line-height:1.6;color:#333}' +
-          'h1{color:#d32f2f;font-size:24px;margin-bottom:16px}' +
-          'p{margin:12px 0}' +
-          'code{background:#f5f5f5;padding:2px 6px;border-radius:3px;font-size:14px}' +
-          'a{color:#1976d2;text-decoration:none}' +
-          'a:hover{text-decoration:underline}' +
-          '</style>' +
-          '</head>' +
-          '<body>' +
-          '<h1>⚠️ Internal Server Error</h1>' +
-          '<p>We encountered an error while trying to display the error page.</p>' +
-          '<p><strong>What happened:</strong></p>' +
-          '<ul>' +
-          `<li>Original error: ${err.message}</li>` +
-          `<li>Error page rendering also failed</li>` +
-          '</ul>' +
-          '<p><strong>What you can do:</strong></p>' +
-          '<ul>' +
-          '<li>Try refreshing the page</li>' +
-          '<li>Go back to the <a href="/">home page</a></li>' +
-          '<li>Contact support if the problem persists</li>' +
-          '</ul>' +
-          (__DEV__
-            ? `<p><strong>Developer info:</strong></p><p><code>${renderError.message}</code></p>`
-            : '') +
-          '</body>' +
-          '</html>',
-      );
-  }
-});
-
-// =============================================================================
-// SERVER LAUNCH
-// =============================================================================
-
-// Development: Enable HMR and export app for dev server
-if (__DEV__ && module.hot) {
-  app.hot = module.hot;
-  module.hot.accept('./routes');
 }
-// Production: Start server directly
-else {
-  apiModels
-    .syncDatabase()
-    .catch(err => {
-      console.error('❌ Database sync failed:', err.message);
-      console.error(err.stack);
-      process.exit(1);
-    })
-    .then(() => {
-      const port = parseInt(process.env.RSK_PORT, 10) || 3000;
 
-      app.listen(port, () => {
+/**
+ * Start Express server listening on specified port
+ *
+ * @param {Object} app - Express app instance
+ * @param {number} [port] - Port to listen on
+ * @param {string} [host] - Host to bind to
+ * @returns {Promise<Object>} HTTP server instance
+ */
+export function startServer(app, port = config.port, host = 'localhost') {
+  return new Promise((resolve, reject) => {
+    const httpServer = app.listen(port, host, error => {
+      if (error) {
+        reject(error);
+      } else {
         console.info('🚀 Server started!');
-        console.info(`📡 Server: http://localhost:${port}/`);
+        console.info(`📡 Server: http://${host}:${port}/`);
         console.info(
           `🌍 Environment: ${process.env.NODE_ENV || 'development'}`,
         );
 
         // Show API configuration
-        if (process.env.RSK_API_PROXY_URL) {
-          console.info(`🔀 API Proxy: ${process.env.RSK_API_PROXY_URL}`);
+        if (config.apiProxyUrl) {
+          console.info(`🔀 API Proxy: ${config.apiProxyUrl}`);
         }
-        if (process.env.RSK_API_BASE_URL) {
-          console.info(`🌐 Client API: ${process.env.RSK_API_BASE_URL}`);
+        if (config.apiBaseUrl) {
+          console.info(`🌐 Client API: ${config.apiBaseUrl}`);
         }
-      });
+
+        resolve(httpServer);
+      }
     });
+  });
 }
 
-export default app;
+/**
+ * Initialize Express app with middleware and routes
+ *
+ * @param {Object} app - Express app instance
+ * @param {string} staticPath - Path to static files directory
+ * @returns {Promise<Object>} Configured Express app
+ */
+async function main(app, staticPath) {
+  // Validate required environment variables
+  if (!config.jwtSecret) {
+    throw new Error(
+      'RSK_JWT_SECRET environment variable is required. Generate one with: openssl rand -base64 32',
+    );
+  }
+
+  // Configure Express
+  app.set('trust proxy', config.trustProxy);
+  app.set('jwtSecret', config.jwtSecret);
+  app.set('jwtExpiresIn', config.jwtExpiresIn);
+
+  // Static files
+  app.use(express.static(staticPath));
+
+  // Request parsing
+  app.use(cookieParser());
+  app.use(bodyParser.urlencoded({ extended: true }));
+  app.use(bodyParser.json());
+
+  // Locale detection
+  app.use(
+    requestLanguage({
+      languages: Object.keys(AVAILABLE_LOCALES),
+      queryName: LOCALE_COOKIE_NAME,
+      cookie: {
+        name: LOCALE_COOKIE_NAME,
+        options: { path: '/', maxAge: LOCALE_COOKIE_MAX_AGE * 1000 },
+        url: `/${LOCALE_COOKIE_NAME}/{language}`,
+      },
+    }),
+  );
+
+  // JWT authentication
+  app.use(
+    expressJwt({
+      secret: config.jwtSecret,
+      algorithms: ['HS256'],
+      credentialsRequired: false,
+      getToken: req => req.cookies.id_token,
+    }),
+  );
+
+  // API routes (local first, then proxy if configured)
+  app.use('/api', apiRoutes);
+
+  if (config.apiProxyUrl) {
+    app.use(
+      '/api',
+      expressProxy(config.apiProxyUrl, {
+        // Remove /api prefix before forwarding
+        // Example: /api/products → /products
+        proxyReqPathResolver: req => req.url.replace(/^\/api/, ''),
+      }),
+    );
+  }
+
+  // Server-side rendering (catch-all)
+  app.get('*', async (req, res, next) => {
+    try {
+      // Initialize request context
+      const fetch = createFetchClient(req);
+      const store = await createReduxStore(req, fetch);
+
+      // Create context object (used by routes and rendering)
+      const context = {
+        fetch,
+        store,
+        i18n,
+        locale: req.language || 'en-US',
+        pathname: req.path,
+        query: req.query,
+      };
+
+      // Resolve route
+      const route = await router.resolve(context);
+
+      // Handle redirects
+      if (route.redirect) {
+        res.redirect(route.status || 302, route.redirect);
+        return;
+      }
+
+      // Validate route component
+      if (!route.component) {
+        const error = new Error(
+          `Route ${req.path} has no component. Check your route configuration.`,
+        );
+        error.status = 500;
+        throw error;
+      }
+
+      // Render HTML
+      const html = await renderPageToHtml({
+        context,
+        component: route.component,
+        metadata: createPageMetadata(route, req),
+      });
+
+      // Send response
+      res.status(route.status || 200).send(html);
+    } catch (err) {
+      console.error('❌ SSR Error:', err.message, 'Path:', req.path);
+      if (__DEV__) console.error(err.stack);
+      next(err);
+    }
+  });
+
+  // Error handling middleware
+  app.use(async (err, req, res, next) => {
+    // Skip if response already sent
+    if (res.headersSent) {
+      return next(err);
+    }
+
+    const status = err.status || 500;
+
+    // Handle JWT authentication errors - clear cookie and set proper status
+    if (err instanceof Jwt401Error) {
+      res.clearCookie('id_token');
+      err.status = 401;
+    }
+
+    // Use Youch for error page rendering
+    // In production, sanitize request to avoid exposing sensitive info
+    const sanitizedReq = __DEV__
+      ? req
+      : {
+          method: req.method,
+          url: req.url,
+          httpVersion: req.httpVersion,
+          headers: {
+            'content-type': req.headers['content-type'] || 'text/html',
+            accept: req.headers.accept || '*/*',
+          },
+          connection: 'keep-alive',
+          cookies: {},
+        };
+
+    const youch = new Youch(err, sanitizedReq);
+    const html = await youch.toHTML();
+    res.status(status).send(html);
+  });
+
+  // Sync database before accepting requests
+  try {
+    await apiModels.syncDatabase({}, !!__DEV__);
+  } catch (err) {
+    console.error('❌ Database sync failed:', err.message);
+    console.error(err.stack);
+    process.exit(1);
+  }
+
+  return app;
+}
+
+/**
+ * Handle different execution modes:
+ *
+ * 1. Development Mode (with HMR):
+ *    - module.hot is available (webpack HMR enabled)
+ *    - Accept hot updates for the routes module
+ *    - Server is started by `npm start`
+ *    - This allows routes to be hot-reloaded without restarting the server
+ *
+ * 2. Production Mode (or standalone execution):
+ *    - module.hot is undefined (no webpack HMR)
+ *    - Initialize Express app and start server immediately
+ *    - Used when running: node build/server.js
+ *    - Creates a new Express instance and serves from 'public' directory
+ */
+if (module.hot) {
+  // Development: Accept HMR updates for routes
+  // When routes change, webpack will hot-reload them without restarting the server
+  module.hot.accept('./routes');
+} else {
+  // Production: Initialize and start server immediately
+  // This is the entry point when running the built server bundle
+  main(express(), path.resolve('public')).then(app =>
+    startServer(app, config.port),
+  );
+}
+
+export default main;
