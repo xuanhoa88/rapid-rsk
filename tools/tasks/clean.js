@@ -11,14 +11,14 @@ import path from 'path';
 import config from '../config';
 import {
   BuildError,
-  logErrorWithContext,
+  logDetailedError,
   withFileSystemRetry,
 } from '../lib/errorHandler';
 import { cleanDir, getFileInfo, readDir } from '../lib/fs';
 import {
   formatBytes,
   formatDuration,
-  getVerboseConfig,
+  isVerbose,
   logDebug,
   logInfo,
   logVerbose,
@@ -242,7 +242,7 @@ async function enhancedCleanDir(targetPath, options = {}) {
       },
     );
 
-    logErrorWithContext(cleanError, { operation: 'clean-directory' });
+    logDetailedError(cleanError, { operation: 'clean-directory' });
 
     // Don't throw here, continue with other paths
     return { error: true, message: error.message };
@@ -302,7 +302,7 @@ export default async function main() {
     const cleaningTargets = [
       {
         name: 'Build directory',
-        path: `${config.BUILD_DIR}/*`,
+        path: config.BUILD_DIR,
         priority: 1,
         options: {},
         description: 'Remove build artifacts and compiled files',
@@ -395,7 +395,7 @@ export default async function main() {
           },
         );
 
-        logErrorWithContext(targetError, { operation: 'clean-target' });
+        logDetailedError(targetError, { operation: 'clean-target' });
         // eslint-disable-next-line no-plusplus
         state.stats.errors++;
 
@@ -452,22 +452,24 @@ export default async function main() {
       logInfo(`   🗑️  Freed space: ${formatBytes(stats.freedSpace)}`);
     }
 
-    if (getVerboseConfig().showPerformance) {
-      logVerbose(`Performance metrics:`);
-      logVerbose(`   Efficiency: ${stats.efficiency.toFixed(1)}%`);
-      logVerbose(
+    if (isVerbose()) {
+      const performanceMetrics = [
+        `Performance metrics:`,
+        `   Efficiency: ${stats.efficiency.toFixed(1)}%`,
         `   Average per target: ${Math.round(
           stats.duration / activeTargets.length,
         )}ms`,
-      );
+      ];
 
       if (stats.freedSpace > 0) {
-        logVerbose(
+        performanceMetrics.push(
           `   Cleanup rate: ${formatBytes(
             stats.freedSpace / (stats.duration / 1000),
           )}/s`,
         );
       }
+
+      logVerbose(performanceMetrics.join('\n'));
     }
 
     return {
@@ -489,7 +491,7 @@ export default async function main() {
             stats: getCleanStats(),
           });
 
-    logErrorWithContext(cleanError, { operation: 'clean' });
+    logDetailedError(cleanError, { operation: 'clean' });
     throw cleanError;
   }
 }

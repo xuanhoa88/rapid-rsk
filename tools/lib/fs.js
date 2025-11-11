@@ -7,24 +7,9 @@
 
 import fsPromises from 'fs/promises';
 import path from 'path';
-import rimraf from 'rimraf';
+import { rimraf } from 'rimraf';
 import { BuildError, withFileSystemRetry } from './errorHandler';
 import { logDebug } from './logger';
-
-// ============================================================================
-// Utility Functions
-// ============================================================================
-
-/**
- * Format bytes to human-readable size
- */
-export function formatBytes(bytes) {
-  if (bytes === 0) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / k ** i).toFixed(2))} ${sizes[i]}`;
-}
 
 /**
  * Validate path for safety
@@ -180,10 +165,6 @@ export async function getFileInfo(filePath) {
   }
 }
 
-// ============================================================================
-// Directory Operations
-// ============================================================================
-
 /**
  * Read directory (simple listing or with file types)
  */
@@ -200,13 +181,6 @@ export async function readDir(dirPath, options = {}) {
     },
     { operation: 'readDir', path: dirPath },
   );
-}
-
-/**
- * Create directory
- */
-export async function makeDir(dirPath) {
-  return ensureDir(dirPath);
 }
 
 /**
@@ -263,11 +237,18 @@ export async function copyDir(source, target, options = {}) {
 /**
  * Clean/delete directory
  * Note: rimraf v4+ is already promise-based, no need for promisify
+ * In rimraf v4, glob patterns require { glob: true } option
  */
 export async function cleanDir(pattern, options = {}) {
+  // Check if pattern contains glob characters (*, ?, [, etc.)
+  const isGlobPattern = /[*?[]/.test(pattern);
+
+  // rimraf v4 requires explicit glob: true for glob patterns
+  const rimrafOptions = isGlobPattern ? { ...options, glob: true } : options;
+
   return withFileSystemRetry(
     async () => {
-      await rimraf(pattern, options);
+      await rimraf(pattern, rimrafOptions);
       logDebug(`🗑️  Cleaned directory: ${pattern}`);
     },
     { operation: 'cleanDir', pattern },
