@@ -33,7 +33,6 @@ async function action({ locale }) {
   }
 
   return {
-    chunks: ['about'],
     title: data.attributes.title,
     component: (
       <Layout>

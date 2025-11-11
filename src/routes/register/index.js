@@ -25,7 +25,6 @@ function action(context) {
   }
 
   return {
-    chunks: ['register'],
     title,
     component: (
       <Layout>

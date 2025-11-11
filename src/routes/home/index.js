@@ -18,7 +18,6 @@ async function action({ fetch }) {
   const data = await fetch('/api/news');
 
   return {
-    chunks: ['home'],
     title,
     component: (
       <Layout showHero>

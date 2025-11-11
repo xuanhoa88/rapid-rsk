@@ -8,12 +8,14 @@
 import Layout from '../../components/Layout';
 import Page from '../../components/Page';
 
+/**
+ * Privacy Policy route
+ */
 async function action() {
   // Load markdown file (only English version exists)
   const data = await import(/* webpackChunkName: "privacy" */ './privacy.md');
 
   return {
-    chunks: ['privacy'],
     title: data.attributes.title,
     component: (
       <Layout>

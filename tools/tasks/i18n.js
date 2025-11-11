@@ -20,9 +20,14 @@ import {
   logWarn,
 } from '../lib/logger';
 
-// =============================================================================
-// STATE MANAGEMENT
-// =============================================================================
+// i18n configuration
+const I18N_TRANSLATIONS_DIR = path.join(config.APP_DIR, 'i18n', 'translations');
+const I18N_SOURCE_EXTENSIONS = config.env(
+  'I18N_SOURCE_EXTENSIONS',
+  '.js,.jsx,.ts,.tsx',
+);
+const I18N_VALIDATE = config.env('I18N_VALIDATE') !== 'false';
+const I18N_BACKUP = config.env('I18N_BACKUP') !== 'false';
 
 const state = {
   extractedKeys: new Set(), // All unique keys found in source
@@ -41,10 +46,6 @@ const state = {
     endTime: null,
   },
 };
-
-// =============================================================================
-// UTILITY FUNCTIONS
-// =============================================================================
 
 /**
  * Convert dot-notation key to nested object
@@ -136,10 +137,6 @@ function sortObjectKeys(obj) {
   return sorted;
 }
 
-// =============================================================================
-// FILE DISCOVERY
-// =============================================================================
-
 /**
  * Recursively find files with specific extensions
  * @param {string} dir - Directory to search
@@ -185,10 +182,6 @@ async function findFiles(dir, extensions = ['.js', '.jsx', '.ts', '.tsx']) {
   await scan(dir);
   return files;
 }
-
-// =============================================================================
-// KEY EXTRACTION
-// =============================================================================
 
 /**
  * Extract translation keys from source code
@@ -283,17 +276,13 @@ async function processFile(fileName) {
   }
 }
 
-// =============================================================================
-// TRANSLATION FILE MANAGEMENT
-// =============================================================================
-
 /**
  * Load existing translation file
  * @param {string} locale - Locale code (e.g., 'en-US')
  * @returns {Object} Translation object (nested)
  */
 async function loadTranslationFile(locale) {
-  const filePath = path.join(config.i18nTranslationsDir, `${locale}.json`);
+  const filePath = path.join(I18N_TRANSLATIONS_DIR, `${locale}.json`);
 
   try {
     const content = await readFile(filePath, 'utf8');
@@ -318,11 +307,11 @@ async function loadTranslationFile(locale) {
  * @param {Object} translations - Translation object (nested)
  */
 async function saveTranslationFile(locale, translations) {
-  const filePath = path.join(config.i18nTranslationsDir, `${locale}.json`);
+  const filePath = path.join(I18N_TRANSLATIONS_DIR, `${locale}.json`);
 
   try {
     // Create backup if enabled
-    if (config.i18nBackup) {
+    if (I18N_BACKUP) {
       try {
         const existingContent = await readFile(filePath, 'utf8');
         const backupPath = `${filePath}.backup.${Date.now()}`;
@@ -359,7 +348,7 @@ async function saveTranslationFile(locale, translations) {
  */
 async function getLocales() {
   try {
-    const files = await readDir(config.i18nTranslationsDir);
+    const files = await readDir(I18N_TRANSLATIONS_DIR);
     const locales = files
       .filter(file => file.endsWith('.json'))
       .map(file => path.basename(file, '.json'));
@@ -368,15 +357,11 @@ async function getLocales() {
     return locales;
   } catch (error) {
     throw new BuildError('Failed to read translations directory', {
-      dir: config.i18nTranslationsDir,
+      dir: I18N_TRANSLATIONS_DIR,
       error: error.message,
     });
   }
 }
-
-// =============================================================================
-// KEY SYNCHRONIZATION
-// =============================================================================
 
 /**
  * Sync keys across all translation files
@@ -414,7 +399,7 @@ async function syncTranslationKeys() {
     });
 
     // Validate existing keys
-    if (config.i18nValidate) {
+    if (I18N_VALIDATE) {
       Object.keys(flatTranslations).forEach(key => {
         if (!state.extractedKeys.has(key)) {
           logWarn(`⚠️  Unused key in ${locale}: ${key}`);
@@ -439,10 +424,6 @@ async function syncTranslationKeys() {
   return results;
 }
 
-// =============================================================================
-// STATISTICS
-// =============================================================================
-
 /**
  * Get processing statistics
  * @returns {Object} Statistics
@@ -462,20 +443,23 @@ function getProcessingStats() {
 /**
  * Print detailed statistics
  * @param {Object} syncResults - Sync results
- * @param {number} duration - Total duration in ms
  */
-function printStatistics(syncResults, duration) {
+function printStatistics(syncResults) {
   const verbose = isVerbose(); // Cache verbose check
   const stats = getProcessingStats();
 
+  // Calculate total new keys added across all locales
+  let totalNewKeys = 0;
+  syncResults.addedKeys.forEach(keys => {
+    totalNewKeys += keys.length;
+  });
+
   const statistics = [
     '\n📊 Statistics:',
-    `   Duration: ${duration}ms`,
     `   Files processed: ${stats.processedFiles}/${stats.totalFiles}`,
     `   Unique keys: ${stats.extractedKeys}`,
     `   Locales: ${syncResults.locales.length}`,
-    `   New keys added: ${syncResults.addedKeys}`,
-    `   Files updated: ${syncResults.updatedFiles}`,
+    ...(totalNewKeys > 0 ? [`   New keys added: ${totalNewKeys}`] : []),
   ].join('\n');
 
   logInfo(statistics);
@@ -534,10 +518,6 @@ function printStatistics(syncResults, duration) {
   logDebug(`\n🌍 Locale details:\n${localeDetails}`);
 }
 
-// =============================================================================
-// VALIDATION
-// =============================================================================
-
 /**
  * Validate extracted keys for common issues
  * @returns {Object} Validation results
@@ -545,7 +525,7 @@ function printStatistics(syncResults, duration) {
 function validateKeys() {
   const issues = [];
 
-  if (!config.i18nValidate) {
+  if (!I18N_VALIDATE) {
     return { valid: true, issues: [] };
   }
 
@@ -578,10 +558,6 @@ function validateKeys() {
   };
 }
 
-// =============================================================================
-// MAIN FUNCTION
-// =============================================================================
-
 /**
  * Main i18n key extraction and synchronization
  */
@@ -594,17 +570,17 @@ export default async function main() {
     logInfo('🌍 Starting i18n key extraction (react-i18next)...');
     logDebug(
       `Source directory: ${config.APP_DIR}\n` +
-        `Source extensions: ${config.i18nSourceExtensions}\n` +
-        `Translations dir: ${config.i18nTranslationsDir}`,
+        `Source extensions: ${I18N_SOURCE_EXTENSIONS}\n` +
+        `Translations dir: ${I18N_TRANSLATIONS_DIR}`,
     );
 
     // Parse extensions string into array
-    const extensions = config.i18nSourceExtensions
+    const extensions = I18N_SOURCE_EXTENSIONS
       .split(',')
       .map(ext => ext.trim());
 
     // Ensure translations directory exists
-    await withFileSystemRetry(() => ensureDir(config.i18nTranslationsDir), {
+    await withFileSystemRetry(() => ensureDir(I18N_TRANSLATIONS_DIR), {
       operation: 'create-translations-dir',
     });
 
@@ -655,7 +631,7 @@ export default async function main() {
     state.stats.endTime = new Date();
     const totalDuration = Date.now() - startTime;
     logInfo(`\n✅ i18n extraction completed in ${totalDuration}ms`);
-    printStatistics(syncResults, totalDuration);
+    printStatistics(syncResults);
 
     return {
       success: true,

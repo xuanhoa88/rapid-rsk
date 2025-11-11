@@ -63,7 +63,7 @@ export default async function main() {
 
   // Process each file
   files.forEach(file => {
-    const filePath = config.resolvePath(file);
+    const filePath = config.resolve(file);
     const fileContent = fs.readFileSync(filePath, 'utf8');
 
     try {

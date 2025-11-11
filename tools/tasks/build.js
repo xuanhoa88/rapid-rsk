@@ -32,6 +32,13 @@ import { clientConfig, serverConfig } from '../webpack';
 import clean from './clean';
 import messages from './i18n';
 
+// Build configuration
+const BUNDLE_REPORT_PATH = config.env(
+  'BUNDLE_REPORT_PATH',
+  path.join(config.BUILD_DIR, 'bundle-report.json'),
+);
+const BUILD_GENERATE_REPORT = config.env('BUILD_REPORT') !== 'false';
+
 /**
  * Generate package.json for build directory
  * Contains only engines and dependencies - no scripts needed
@@ -107,34 +114,33 @@ function validatePrerequisites() {
 
 /**
  * Analyze webpack compilation stats
- * Simplified to extract only essential metrics
+ * Uses webpack's built-in stats.toJson() for comprehensive data
  */
 function analyzeStats(stats) {
-  // Handle multi-compiler stats (client + server)
-  const compilations = stats.stats
-    ? stats.stats.map(s => s.compilation)
-    : [stats.compilation];
+  // Get webpack's JSON stats (includes all compilations)
+  const jsonStats = stats.toJson({
+    all: false,
+    assets: true,
+    errors: true,
+    warnings: true,
+    timings: true,
+  });
 
   // Collect all assets (exclude source maps)
   const allAssets = [];
-  let totalWarnings = 0;
-  let totalErrors = 0;
 
-  compilations.forEach(compilation => {
-    if (compilation) {
-      // Extract assets
-      Object.entries(compilation.assets || {}).forEach(([name, asset]) => {
-        if (!name.endsWith('.map')) {
-          allAssets.push({
-            name,
-            size: typeof asset.size === 'function' ? asset.size() : 0,
-          });
-        }
-      });
+  // Handle multi-compiler stats (client + server)
+  const children = jsonStats.children || [jsonStats];
 
-      totalWarnings += (compilation.warnings || []).length;
-      totalErrors += (compilation.errors || []).length;
-    }
+  children.forEach(childStats => {
+    (childStats.assets || []).forEach(asset => {
+      if (!asset.name.endsWith('.map')) {
+        allAssets.push({
+          name: asset.name,
+          size: asset.size,
+        });
+      }
+    });
   });
 
   // Sort by size and calculate totals
@@ -144,23 +150,26 @@ function analyzeStats(stats) {
   return {
     totalSize,
     assetCount: allAssets.length,
-    warnings: totalWarnings,
-    errors: totalErrors,
+    warnings: (jsonStats.warnings || []).length,
+    errors: (jsonStats.errors || []).length,
     oversizedAssets: allAssets.filter(
       asset => asset.size > config.bundleMaxAssetSize,
     ),
     largestAssets: allAssets.slice(0, 5),
+    webpackStats: jsonStats, // Include full webpack stats for report
   };
 }
 
 /**
  * Generate bundle report
+ * Saves comprehensive webpack stats to file for analysis
  */
 function generateBundleReport(analysis, duration) {
-  if (!config.bundleAnalyze && !config.buildGenerateReport) {
+  if (!config.bundleAnalyze && !BUILD_GENERATE_REPORT) {
     return;
   }
 
+  // Create comprehensive report using webpack's built-in stats
   const report = {
     timestamp: new Date().toISOString(),
     duration,
@@ -168,12 +177,14 @@ function generateBundleReport(analysis, duration) {
       version: webpack.version,
       mode: process.env.NODE_ENV || 'development',
     },
-    bundle: {
+    summary: {
       totalSize: analysis.totalSize,
       assetCount: analysis.assetCount,
+      warnings: analysis.warnings,
+      errors: analysis.errors,
     },
-    warnings: analysis.warnings,
-    errors: analysis.errors,
+    // Include full webpack stats for detailed analysis
+    stats: analysis.webpackStats,
   };
 
   if (analysis.oversizedAssets.length > 0) {
@@ -187,17 +198,15 @@ function generateBundleReport(analysis, duration) {
   }
 
   // Save report
-  if (config.bundleReportPath) {
+  if (BUNDLE_REPORT_PATH) {
     try {
-      const reportDir = path.dirname(config.bundleReportPath);
+      const reportDir = path.dirname(BUNDLE_REPORT_PATH);
       if (!fs.existsSync(reportDir)) {
         fs.mkdirSync(reportDir, { recursive: true });
       }
-      fs.writeFileSync(
-        config.bundleReportPath,
-        JSON.stringify(report, null, 2),
-      );
-      logDebug(`📄 Bundle report saved to ${config.bundleReportPath}`);
+      fs.writeFileSync(BUNDLE_REPORT_PATH, JSON.stringify(report, null, 2));
+      logDebug(`📄 Bundle report saved to ${BUNDLE_REPORT_PATH}`);
+      logDebug(`   Report includes full webpack stats for analysis`);
     } catch (error) {
       logWarn(`Failed to save bundle report: ${error.message}`);
     }

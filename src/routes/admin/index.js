@@ -30,7 +30,6 @@ async function action(context) {
   }
 
   return {
-    chunks: ['admin'],
     title,
     component: (
       <Layout>

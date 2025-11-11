@@ -15,7 +15,6 @@ function action() {
   const title = 'Contact Us';
 
   return {
-    chunks: ['contact'],
     title,
     component: (
       <Layout>

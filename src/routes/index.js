@@ -14,6 +14,23 @@ import { getRuntimeVariable } from '../redux';
  * Application routes configuration.
  * Routes are evaluated in order - more specific routes should come first.
  *
+ * CODE SPLITTING STRATEGY:
+ * Each route uses dynamic import() with webpackChunkName to create separate bundles.
+ * The chunk name in the comment (e.g., 'home', 'login') determines the output filename.
+ *
+ * How it works:
+ * 1. Webpack sees import(/* webpackChunkName: 'home' *\/ './home')
+ * 2. Creates a separate bundle: home.[hash].js
+ * 3. @loadable/component's ChunkExtractor automatically detects required chunks
+ * 4. Server injects chunk metadata into HTML for client hydration
+ * 5. Client loads chunks on-demand when navigating to routes
+ *
+ * Benefits:
+ * - Smaller initial bundle (only main code loads upfront)
+ * - Faster page loads (route code loads on-demand)
+ * - Better caching (route chunks cached independently)
+ * - Automatic chunk detection (no manual chunks array needed)
+ *
  * Note: Dynamic imports must be explicit for webpack to resolve them correctly.
  * Using a helper function with template literals doesn't work with webpack's
  * static analysis.

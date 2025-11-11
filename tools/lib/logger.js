@@ -5,10 +5,6 @@
  * LICENSE.txt file in the root directory of this source tree.
  */
 
-// ============================================================================
-// Log Level Management
-// ============================================================================
-
 const LOG_LEVELS = Object.freeze({
   silent: 0,
   error: 1,
@@ -59,10 +55,6 @@ export function getLogLevel() {
 function shouldLog(level) {
   return LOG_LEVELS[level] <= LOG_LEVELS[CURRENT_LOG_LEVEL];
 }
-
-// ============================================================================
-// Convenience Functions
-// ============================================================================
 
 export function isSilent() {
   return CURRENT_LOG_LEVEL === 'silent';

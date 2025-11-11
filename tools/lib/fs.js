@@ -53,10 +53,6 @@ export async function ensureDir(dirPath) {
   await fsPromises.mkdir(dirPath, { recursive: true });
 }
 
-// ============================================================================
-// Core File Operations
-// ============================================================================
-
 /**
  * Read file with error handling and retry logic
  */

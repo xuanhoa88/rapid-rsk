@@ -25,7 +25,6 @@ function action(context) {
   }
 
   return {
-    chunks: ['login'],
     title,
     component: (
       <Layout>

@@ -13,10 +13,6 @@ const isVerbose = process.env.JEST_VERBOSE !== 'false';
 const maxWorkers = process.env.JEST_MAX_WORKERS || (isCI ? 2 : '50%');
 
 module.exports = {
-  // ============================================================================
-  // Core Configuration
-  // ============================================================================
-
   /**
    * Automatically clear mock calls, instances, contexts and results before every test.
    * Equivalent to calling jest.clearAllMocks() before each test.
@@ -91,10 +87,6 @@ module.exports = {
     },
   },
 
-  // ============================================================================
-  // Test Environment
-  // ============================================================================
-
   /**
    * The test environment that will be used for testing.
    * jsdom simulates a browser environment for React component testing.
@@ -116,10 +108,6 @@ module.exports = {
     __TEST__: true,
     NODE_ENV: 'test',
   },
-
-  // ============================================================================
-  // Module Resolution
-  // ============================================================================
 
   /**
    * An array of file extensions your modules use.
@@ -159,14 +147,10 @@ module.exports = {
    */
   modulePathIgnorePatterns: ['<rootDir>/build/', '<rootDir>/coverage/'],
 
-  // ============================================================================
-  // Test Discovery
-  // ============================================================================
-
   /**
    * The root directory that Jest should scan for tests and modules within.
    */
-  rootDir: '..',
+  rootDir: process.env.CWD || process.cwd(),
 
   /**
    * A list of paths to directories that Jest should use to search for files in.
@@ -189,10 +173,6 @@ module.exports = {
     '/tools/',
   ],
 
-  // ============================================================================
-  // Transforms
-  // ============================================================================
-
   /**
    * A map from regular expressions to paths to transformers.
    * Transformers are modules that provide a synchronous function for transforming source files.
@@ -208,10 +188,6 @@ module.exports = {
    */
   transformIgnorePatterns: ['/node_modules/(?!(identity-obj-proxy)/)'],
 
-  // ============================================================================
-  // Setup and Teardown
-  // ============================================================================
-
   /**
    * A list of paths to modules that run some code to configure or set up the testing
    * environment before each test file in the suite is executed.
@@ -225,10 +201,6 @@ module.exports = {
    * framework before each test file in the suite is executed.
    */
   setupFilesAfterEnv: ['<rootDir>/tools/jest.setupAfterEnv.js'],
-
-  // ============================================================================
-  // Performance and Optimization
-  // ============================================================================
 
   /**
    * Stop running tests after the first failure.
@@ -260,10 +232,6 @@ module.exports = {
    * Note: This option is not available in Jest 24.9.0 (added in Jest 25+)
    */
   // slowTestThreshold: 5,
-
-  // ============================================================================
-  // Output and Reporting
-  // ============================================================================
 
   /**
    * Indicates whether each individual test should be reported during the run.
@@ -315,10 +283,6 @@ module.exports = {
     color: 'blue',
   },
 
-  // ============================================================================
-  // Error Handling
-  // ============================================================================
-
   /**
    * Make calling deprecated APIs throw helpful error messages.
    */
@@ -328,10 +292,6 @@ module.exports = {
    * Throw an error if any tests are failing.
    */
   // passWithNoTests: false,
-
-  // ============================================================================
-  // Watch Mode
-  // ============================================================================
 
   /**
    * Watch plugins to enhance the watch mode experience.
@@ -346,10 +306,6 @@ module.exports = {
    * before re-running tests in watch mode.
    */
   watchPathIgnorePatterns: ['/node_modules/', '/build/', '/coverage/'],
-
-  // ============================================================================
-  // Advanced Configuration
-  // ============================================================================
 
   /**
    * Automatically clear mock calls and instances before every test.

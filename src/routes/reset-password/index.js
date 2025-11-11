@@ -25,7 +25,6 @@ function action(context) {
   }
 
   return {
-    chunks: ['reset-password'],
     title,
     component: (
       <Layout>

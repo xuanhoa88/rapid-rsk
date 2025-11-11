@@ -9,13 +9,12 @@ import Layout from '../../components/Layout';
 import ErrorPage from './ErrorPage';
 
 /**
- * Error route
+ * Error route (Development only)
  */
 function action() {
   const title = 'Error';
 
   return {
-    chunks: ['error'],
     title,
     component: (
       <Layout>

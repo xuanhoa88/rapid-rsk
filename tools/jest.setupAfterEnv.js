@@ -13,10 +13,6 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 
-// =============================================================================
-// I18NEXT CONFIGURATION FOR TESTS
-// =============================================================================
-
 /**
  * Initialize i18next for testing environment
  * Uses minimal configuration with test translations

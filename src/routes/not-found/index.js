@@ -14,7 +14,6 @@ import NotFound from './NotFound';
 function action() {
   const title = 'Page Not Found';
   return {
-    chunks: ['not-found'],
     title,
     component: (
       <Layout>

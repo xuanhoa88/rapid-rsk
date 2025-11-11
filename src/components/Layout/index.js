@@ -10,13 +10,13 @@ import PropTypes from 'prop-types';
 import Feedback from '../Feedback';
 import Footer from '../Footer';
 import Header from '../Header';
-import './Layout.css';
+import s from './Layout.css';
 
 function Layout({ children, showHero = false }) {
   return (
-    <div>
+    <div className={s.root}>
       <Header showHero={showHero} />
-      {children}
+      <main className={s.content}>{children}</main>
       <Feedback />
       <Footer />
     </div>

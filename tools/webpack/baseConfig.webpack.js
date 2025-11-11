@@ -10,9 +10,17 @@ import webpack from 'webpack';
 import config from '../config';
 import { isVerbose } from '../lib/logger';
 
+// Base webpack configuration
+const BUNDLE_PROFILE = config.env('BUNDLE_PROFILE') === 'true';
+const BUNDLE_SOURCE_MAPS = config.env('BUNDLE_SOURCE_MAPS') !== 'false';
+const BUNDLE_MAX_ENTRYPOINT_SIZE =
+  parseInt(config.env('BUNDLE_MAX_ENTRYPOINT_SIZE'), 10) || 250000; // 250KB
+const BUNDLE_PERFORMANCE_HINTS =
+  config.env('BUNDLE_PERFORMANCE_HINTS') !== 'false';
+
 /** Get file naming pattern based on environment */
 const getFileNamePattern = (isDebug, hashType = 'hash') =>
-  isDebug ? '[path][name].[ext]' : `[${hashType}:8].[ext]`;
+  isDebug ? '[path][name][ext]' : `[${hashType}:8][ext]`;
 
 /**
  * Create CSS loader configuration for webpack
@@ -134,10 +142,6 @@ export const createCSSRule = ({ isClient, isDebug, extractLoader }) => {
   };
 };
 
-// =============================================================================
-// ENVIRONMENT & MODE CONFIGURATION
-// =============================================================================
-
 export const isDebug = process.env.NODE_ENV !== 'production';
 
 const verbose = isVerbose(); // Cache verbose check
@@ -147,8 +151,7 @@ export const isAnalyze =
   process.argv.includes('--analyse') ||
   config.bundleAnalyze;
 
-export const isProfile =
-  process.argv.includes('--profile') || config.bundleProfile;
+export const isProfile = process.argv.includes('--profile') || BUNDLE_PROFILE;
 
 // JavaScript files (including ES modules and CommonJS)
 export const reScript = /\.(js|jsx|[cm]js)$/i;
@@ -194,10 +197,6 @@ export const createDefinePluginConfig = ({
     ...extraDefinitions,
   });
 
-// =============================================================================
-// COMMON WEBPACK CONFIGURATION
-// =============================================================================
-
 /**
  * Common configuration chunk to be used for both
  * client-side (client.js) and server-side (server.js) bundles
@@ -205,13 +204,12 @@ export const createDefinePluginConfig = ({
 export default {
   mode: process.env.NODE_ENV || 'development',
 
+  // Output configuration for server bundle
+  // https://webpack.js.org/configuration/output/
   output: {
-    path: config.resolvePath(config.BUILD_DIR, 'public', 'assets'),
-    publicPath: process.env.WEBPACK_PUBLIC_PATH || '/assets/',
-    filename: isDebug ? '[name].js' : '[name].[chunkhash:8].js',
-    chunkFilename: isDebug
-      ? '[name].chunk.js'
-      : '[name].[chunkhash:8].chunk.js',
+    // Public URL path for assets (must match client config)
+    // This ensures server and client generate the same asset URLs
+    publicPath: '/',
   },
 
   resolve: {
@@ -472,10 +470,10 @@ export default {
 
   // Performance hints
   performance:
-    config.bundlePerformanceHints && !isDebug
+    BUNDLE_PERFORMANCE_HINTS && !isDebug
       ? {
           maxAssetSize: config.bundleMaxAssetSize,
-          maxEntrypointSize: config.bundleMaxEntrypointSize,
+          maxEntrypointSize: BUNDLE_MAX_ENTRYPOINT_SIZE,
           hints: 'warning',
           assetFilter: assetFilename => /\.(js|css)$/.test(assetFilename),
         }
@@ -483,7 +481,7 @@ export default {
 
   // Choose a developer tool to enhance debugging
   // https://webpack.js.org/configuration/devtool/
-  devtool: config.bundleSourceMaps
+  devtool: BUNDLE_SOURCE_MAPS
     ? process.env.WEBPACK_DEVTOOL ||
       (isDebug ? 'eval-cheap-module-source-map' : 'source-map')
     : false,
