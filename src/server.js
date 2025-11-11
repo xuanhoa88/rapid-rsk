@@ -8,11 +8,6 @@
 import bodyParser from 'body-parser';
 import cookieParser from 'cookie-parser';
 import express from 'express';
-import expressProxy from 'express-http-proxy';
-import {
-  expressjwt as expressJwt,
-  UnauthorizedError as Jwt401Error,
-} from 'express-jwt';
 import requestLanguage from 'express-request-language';
 import { ChunkExtractor } from '@loadable/server';
 import Youch from 'youch';
@@ -26,7 +21,7 @@ import {
   setLocale,
   setRuntimeVariable,
 } from './redux';
-import { apiModels, apiRoutes } from './api';
+import createApi from './api';
 import App from './components/App';
 import Html from './components/Html';
 import { createFetch } from './createFetch';
@@ -266,17 +261,8 @@ export function startServer(app, port = config.port, host = 'localhost') {
  * @returns {Promise<Object>} Configured Express app
  */
 async function main(app, staticPath) {
-  // Validate required environment variables
-  if (!config.jwtSecret) {
-    throw new Error(
-      'RSK_JWT_SECRET environment variable is required. Generate one with: openssl rand -base64 32',
-    );
-  }
-
   // Configure Express
   app.set('trust proxy', config.trustProxy);
-  app.set('jwtSecret', config.jwtSecret);
-  app.set('jwtExpiresIn', config.jwtExpiresIn);
 
   // Static files
   app.use(express.static(staticPath));
@@ -299,29 +285,14 @@ async function main(app, staticPath) {
     }),
   );
 
-  // JWT authentication
-  app.use(
-    expressJwt({
-      secret: config.jwtSecret,
-      algorithms: ['HS256'],
-      credentialsRequired: false,
-      getToken: req => req.cookies.id_token,
-    }),
-  );
-
-  // API routes (local first, then proxy if configured)
-  app.use('/api', apiRoutes);
-
-  if (config.apiProxyUrl) {
-    app.use(
-      '/api',
-      expressProxy(config.apiProxyUrl, {
-        // Remove /api prefix before forwarding
-        // Example: /api/products → /products
-        proxyReqPathResolver: req => req.url.replace(/^\/api/, ''),
-      }),
-    );
-  }
+  // Bootstrap API - auto-discover and mount all modules
+  // API mounts itself at /api, syncs database, and sets up all middleware
+  // Database sync behavior is controlled by NODE_ENV
+  await createApi(app, {
+    jwtSecret: config.jwtSecret,
+    jwtExpiresIn: config.jwtExpiresIn,
+    apiProxyUrl: config.apiProxyUrl,
+  });
 
   // Server-side rendering (catch-all)
   app.get('*', async (req, res, next) => {
@@ -384,7 +355,7 @@ async function main(app, staticPath) {
     const status = err.status || 500;
 
     // Handle JWT authentication errors - clear cookie and set proper status
-    if (err instanceof Jwt401Error) {
+    if (err.name === 'UnauthorizedError') {
       res.clearCookie('id_token');
       err.status = 401;
     }
@@ -409,15 +380,6 @@ async function main(app, staticPath) {
     const html = await youch.toHTML();
     res.status(status).send(html);
   });
-
-  // Sync database before accepting requests
-  try {
-    await apiModels.syncDatabase({}, !!__DEV__);
-  } catch (err) {
-    console.error('❌ Database sync failed:', err.message);
-    console.error(err.stack);
-    process.exit(1);
-  }
 
   return app;
 }
