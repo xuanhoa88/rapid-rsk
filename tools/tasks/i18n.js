@@ -10,9 +10,9 @@
 import path from 'path';
 import config from '../config';
 import { BuildError, withFileSystemRetry } from '../lib/errorHandler';
-import { makeDir, readDir, readFile, writeFile } from '../lib/fs';
+import { ensureDir, readDir, readFile, writeFile } from '../lib/fs';
 import {
-  getVerboseConfig,
+  isVerbose,
   logDebug,
   logError,
   logInfo,
@@ -465,54 +465,73 @@ function getProcessingStats() {
  * @param {number} duration - Total duration in ms
  */
 function printStatistics(syncResults, duration) {
-  const verboseConfig = getVerboseConfig();
+  const verbose = isVerbose(); // Cache verbose check
   const stats = getProcessingStats();
 
-  logInfo('\n📊 Statistics:');
-  logInfo(`   Duration: ${duration}ms`);
-  logInfo(`   Files processed: ${stats.processedFiles}/${stats.totalFiles}`);
-  logInfo(`   Unique keys: ${stats.extractedKeys}`);
-  logInfo(`   Locales: ${syncResults.locales.length}`);
-  logInfo(`   New keys added: ${syncResults.addedKeys}`);
-  logInfo(`   Files updated: ${syncResults.updatedFiles}`);
+  const statistics = [
+    '\n📊 Statistics:',
+    `   Duration: ${duration}ms`,
+    `   Files processed: ${stats.processedFiles}/${stats.totalFiles}`,
+    `   Unique keys: ${stats.extractedKeys}`,
+    `   Locales: ${syncResults.locales.length}`,
+    `   New keys added: ${syncResults.addedKeys}`,
+    `   Files updated: ${syncResults.updatedFiles}`,
+  ].join('\n');
+
+  logInfo(statistics);
 
   if (state.warnings.length > 0) {
-    logWarn(`   Warnings: ${state.warnings.length}`);
-    if (verboseConfig.verbose) {
-      state.warnings.forEach(warning => logWarn(`     - ${warning}`));
+    const warningMessage = [`   Warnings: ${state.warnings.length}`];
+
+    if (verbose) {
+      state.warnings.forEach(warning => {
+        warningMessage.push(`     - ${warning}`);
+      });
     }
+
+    logWarn(warningMessage.join('\n'));
   }
 
   if (state.errors.length > 0) {
-    logWarn(`   Errors: ${state.errors.length}`);
-    if (verboseConfig.verbose) {
+    const errorMessage = [`   Errors: ${state.errors.length}`];
+
+    if (verbose) {
       state.errors.forEach(({ fileName, error }) => {
-        logWarn(`     - ${path.basename(fileName)}: ${error.message}`);
+        errorMessage.push(
+          `     - ${path.basename(fileName)}: ${error.message}`,
+        );
       });
     }
+
+    logWarn(errorMessage.join('\n'));
   }
 
   // Show most used keys in verbose mode
-  if (verboseConfig.verbose && state.keyUsage.size > 0) {
-    logVerbose('\n🔑 Most used keys:');
+  if (verbose && state.keyUsage.size > 0) {
     const sortedKeys = Array.from(state.keyUsage.entries())
       .sort((a, b) => b[1].size - a[1].size)
       .slice(0, 10);
-    sortedKeys.forEach(([key, files]) => {
-      logVerbose(`   ${key}: ${files.size} file(s)`);
-    });
+
+    const keysList = sortedKeys.map(
+      ([key, files]) => `   ${key}: ${files.size} file(s)`,
+    );
+
     if (state.keyUsage.size > 10) {
-      logVerbose(`   ... and ${state.keyUsage.size - 10} more keys`);
+      keysList.push(`   ... and ${state.keyUsage.size - 10} more keys`);
     }
+
+    logVerbose(`\n🔑 Most used keys:\n${keysList.join('\n')}`);
   }
 
   // Show locale details in debug mode
-  if (verboseConfig.debug) {
-    logDebug('\n🌍 Locale details:');
-    syncResults.locales.forEach(({ locale, addedKeys, totalKeys }) => {
-      logDebug(`   ${locale}: ${totalKeys} keys (${addedKeys} new)`);
-    });
-  }
+  const localeDetails = syncResults.locales
+    .map(
+      ({ locale, addedKeys, totalKeys }) =>
+        `   ${locale}: ${totalKeys} keys (${addedKeys} new)`,
+    )
+    .join('\n');
+
+  logDebug(`\n🌍 Locale details:\n${localeDetails}`);
 }
 
 // =============================================================================
@@ -573,9 +592,11 @@ export default async function main() {
     state.stats.startTime = new Date();
 
     logInfo('🌍 Starting i18n key extraction (react-i18next)...');
-    logDebug(`Source directory: ${config.APP_DIR}`);
-    logDebug(`Source extensions: ${config.i18nSourceExtensions}`);
-    logDebug(`Translations dir: ${config.i18nTranslationsDir}`);
+    logDebug(
+      `Source directory: ${config.APP_DIR}\n` +
+        `Source extensions: ${config.i18nSourceExtensions}\n` +
+        `Translations dir: ${config.i18nTranslationsDir}`,
+    );
 
     // Parse extensions string into array
     const extensions = config.i18nSourceExtensions
@@ -583,7 +604,7 @@ export default async function main() {
       .map(ext => ext.trim());
 
     // Ensure translations directory exists
-    await withFileSystemRetry(() => makeDir(config.i18nTranslationsDir), {
+    await withFileSystemRetry(() => ensureDir(config.i18nTranslationsDir), {
       operation: 'create-translations-dir',
     });
 
@@ -620,10 +641,14 @@ export default async function main() {
     // Validate keys
     const validation = validateKeys();
     if (validation.issues.length > 0) {
-      logWarn(`\n⚠️  Found ${validation.issues.length} validation issue(s):`);
-      validation.issues.forEach(issue => {
-        logWarn(`   ${issue.type.toUpperCase()}: ${issue.message}`);
-      });
+      const validationMessage = [
+        `\n⚠️  Found ${validation.issues.length} validation issue(s):`,
+        ...validation.issues.map(
+          issue => `   ${issue.type.toUpperCase()}: ${issue.message}`,
+        ),
+      ];
+
+      logWarn(validationMessage.join('\n'));
     }
 
     // Print statistics

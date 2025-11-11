@@ -30,9 +30,10 @@ export default function main(fn, options) {
   const task = typeof fn.default === 'undefined' ? fn : fn.default;
   const taskName = task.name || 'anonymous';
   const startTime = Date.now();
+  const silent = isSilent(); // Cache silent check
 
   // Log task start
-  if (!isSilent()) {
+  if (!silent) {
     logInfo(`🏁 Starting '${taskName}'...`);
   }
 
@@ -47,7 +48,7 @@ export default function main(fn, options) {
       const duration = Date.now() - startTime;
 
       // Log completion
-      if (!isSilent()) {
+      if (!silent) {
         const emoji = duration > 10000 ? '🐌' : duration > 5000 ? '⚠️' : '✅';
         logInfo(
           `${emoji} Finished '${taskName}' after ${formatDuration(duration)}`,
@@ -57,7 +58,7 @@ export default function main(fn, options) {
       return result;
     })
     .catch(error => {
-      const duration = Date.now() - startTime;
+      const formattedDuration = formatDuration(Date.now() - startTime);
 
       // Wrap error if needed
       const taskError =
@@ -65,20 +66,21 @@ export default function main(fn, options) {
           ? error
           : new BuildError(`Task '${taskName}' failed: ${error.message}`, {
               task: taskName,
-              duration: formatDuration(duration),
+              duration: formattedDuration,
               originalError: error.message,
               stack: error.stack,
             });
 
       // Log failure
-      if (!isSilent()) {
-        logError(`❌ Failed '${taskName}' after ${formatDuration(duration)}`);
-        logError(taskError.message);
+      if (!silent) {
+        const verbose = isVerbose();
+        let errorMessage = `❌ Failed '${taskName}' after ${formattedDuration}\n${taskError.message}`;
 
-        if (isVerbose() && taskError.stack) {
-          logError('\nStack trace:');
-          logError(taskError.stack);
+        if (verbose && taskError.stack) {
+          errorMessage += `\n\nStack trace:\n${taskError.stack}`;
         }
+
+        logError(errorMessage);
       }
 
       throw taskError;
@@ -100,6 +102,11 @@ const AVAILABLE_TASKS = [
     name: 'start',
     description: 'Start the project for development',
     processEnv: { NODE_ENV: process.env.NODE_ENV || 'development' },
+  },
+  {
+    name: 'test',
+    description: 'Run tests with Jest',
+    processEnv: { NODE_ENV: process.env.NODE_ENV || 'test' },
   },
   {
     name: 'i18n',
@@ -150,8 +157,12 @@ function executeTask(taskName) {
       ? Object.assign({}, process.env, taskEnv)
       : process.env;
 
+    // Get additional arguments to forward to task (everything after task name)
+    const taskArgs = process.argv.slice(3); // Skip node, script, and task name
+
     // Spawn task in child process using babel-node
-    const taskProcess = spawn('babel-node', [taskPath], {
+    // Forward any additional arguments to the task
+    const taskProcess = spawn('babel-node', [taskPath, ...taskArgs], {
       stdio: 'inherit', // Inherit stdin, stdout, stderr
       env: processEnv,
       cwd: config.ROOT_DIR,
@@ -196,17 +207,21 @@ if (require.main === module) {
   executeTask(taskName).catch(error => {
     // Task file not found or spawn failed
     if (error.message.includes('Failed to spawn')) {
-      logError(`\n🚫 Task '${taskName}' not found`);
       const taskList = AVAILABLE_TASKS.map(t => t.name).join(', ');
-      logError(`\n📋 Available tasks: ${taskList}`);
+      logError(
+        `\n🚫 Task '${taskName}' not found\n📋 Available tasks: ${taskList}`,
+      );
       logInfo('\n💡 Run "babel-node tools/run help" for more information');
     } else {
       // Task execution failed
-      logError(`\n🚫 ${error.message}`);
-      if (isVerbose() && error.stack) {
-        logError('\nStack trace:');
-        logError(error.stack);
+      const verbose = isVerbose();
+      let errorMessage = `\n🚫 ${error.message}`;
+
+      if (verbose && error.stack) {
+        errorMessage += `\n\nStack trace:\n${error.stack}`;
       }
+
+      logError(errorMessage);
     }
     process.exit(1);
   });

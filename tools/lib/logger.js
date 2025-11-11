@@ -72,38 +72,6 @@ export function isVerbose() {
   return CURRENT_LOG_LEVEL === 'verbose' || CURRENT_LOG_LEVEL === 'debug';
 }
 
-export function isDebug() {
-  return CURRENT_LOG_LEVEL === 'debug';
-}
-
-/**
- * Get verbose configuration object
- * Returns flags for different types of verbose output
- */
-export function getVerboseConfig() {
-  const verbose = isVerbose();
-  const debug = isDebug();
-
-  return {
-    isVerbose: verbose,
-    isDebug: debug,
-    showPerformance: verbose,
-    showMemory: debug,
-    showTiming: verbose,
-    showStats: verbose,
-    showDebugInfo: debug,
-    showStackTrace: debug,
-    showContext: verbose,
-    showAssets: verbose,
-    showModules: debug,
-    showChunks: debug,
-  };
-}
-
-// ============================================================================
-// Core Logging Functions
-// ============================================================================
-
 /**
  * Log error messages (always shown unless silent)
  */
@@ -149,10 +117,6 @@ export function logDebug(message, ...args) {
   }
 }
 
-// ============================================================================
-// Utility Functions
-// ============================================================================
-
 /**
  * Format bytes to human-readable format
  */
@@ -173,30 +137,4 @@ export function formatDuration(ms) {
   const minutes = Math.floor(ms / 60000);
   const seconds = Math.round((ms % 60000) / 1000);
   return `${minutes}m ${seconds}s`;
-}
-
-/**
- * Format timestamp to HH:MM:SS
- */
-export function formatTimestamp(time = new Date()) {
-  return time.toTimeString().replace(/.*(\d{2}:\d{2}:\d{2}).*/, '$1');
-}
-
-/**
- * Get current memory usage
- */
-export function getMemoryUsage() {
-  const usage = process.memoryUsage();
-  return {
-    rss: usage.rss,
-    heapUsed: usage.heapUsed,
-    heapTotal: usage.heapTotal,
-    external: usage.external,
-    formatted: {
-      rss: formatBytes(usage.rss),
-      heapUsed: formatBytes(usage.heapUsed),
-      heapTotal: formatBytes(usage.heapTotal),
-      external: formatBytes(usage.external),
-    },
-  };
 }

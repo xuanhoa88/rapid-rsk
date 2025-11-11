@@ -13,7 +13,7 @@ import pkg from '../../package.json';
 import config from '../config';
 import {
   BuildError,
-  logErrorWithContext,
+  logDetailedError,
   setupGracefulShutdown,
   withBuildRetry,
 } from '../lib/errorHandler';
@@ -21,7 +21,6 @@ import { copyDir, copyFile, writeFile } from '../lib/fs';
 import {
   formatBytes,
   formatDuration,
-  isDebug,
   isSilent,
   isVerbose,
   logDebug,
@@ -103,9 +102,7 @@ function validatePrerequisites() {
     throw new BuildError('node_modules not found - run npm install');
   }
 
-  if (isDebug()) {
-    logDebug('✅ Prerequisites validated');
-  }
+  logDebug('✅ Prerequisites validated');
 }
 
 /**
@@ -211,38 +208,50 @@ function generateBundleReport(analysis, duration) {
  * Log bundle results
  */
 function logBundleResults(analysis, duration) {
-  logInfo(`✅ Bundle complete in ${formatDuration(duration)}`);
+  const formattedDuration = formatDuration(duration);
+  logInfo(`✅ Bundle complete in ${formattedDuration}`);
 
-  if (isVerbose()) {
-    logVerbose(`\n📊 Bundle summary:`);
-    logVerbose(`   Total size: ${formatBytes(analysis.totalSize)}`);
-    logVerbose(`   Assets: ${analysis.assetCount}`);
-    logVerbose(`   Duration: ${formatDuration(duration)}`);
+  const verbose = isVerbose(); // Cache verbose check
+
+  if (verbose) {
+    const bundleSummary = [
+      `\n📊 Bundle summary:`,
+      `   Total size: ${formatBytes(analysis.totalSize)}`,
+      `   Assets: ${analysis.assetCount}`,
+      `   Duration: ${formattedDuration}`,
+    ];
 
     if (analysis.largestAssets.length > 0) {
-      logVerbose(`   Largest assets:`);
+      bundleSummary.push(`   Largest assets:`);
       analysis.largestAssets.forEach(asset => {
-        logVerbose(`      • ${asset.name}: ${formatBytes(asset.size)}`);
+        bundleSummary.push(`      • ${asset.name}: ${formatBytes(asset.size)}`);
       });
     }
+
+    logVerbose(bundleSummary.join('\n'));
   }
 
   // Warnings
   if (analysis.oversizedAssets.length > 0) {
-    logWarn(
+    const warningMessage = [
       `⚠️  ${
         analysis.oversizedAssets.length
       } asset(s) exceed size limit (${formatBytes(config.bundleMaxAssetSize)})`,
-    );
-    if (isVerbose()) {
+    ];
+
+    if (verbose) {
       analysis.oversizedAssets.slice(0, 3).forEach(asset => {
-        logWarn(`      • ${asset.name}: ${formatBytes(asset.size)}`);
+        warningMessage.push(
+          `      • ${asset.name}: ${formatBytes(asset.size)}`,
+        );
       });
     }
+
+    logWarn(warningMessage.join('\n'));
   }
 
   if (duration > 30000) {
-    logWarn(`⚠️  Slow build detected (${formatDuration(duration)})`);
+    logWarn(`⚠️  Slow build detected (${formattedDuration})`);
   }
 }
 
@@ -306,10 +315,10 @@ function createBundle() {
 /**
  * Execute a build step with timing and error handling
  */
-async function executeStep(step, index, total) {
+async function executeStep(step, index, total, silent) {
   const start = performance.now();
 
-  if (!isSilent()) {
+  if (!silent) {
     logInfo(`[${index + 1}/${total}] ${step.description}...`);
   }
 
@@ -338,8 +347,9 @@ async function executeStep(step, index, total) {
  */
 export default async function main() {
   const startTime = Date.now();
+  const silent = isSilent(); // Cache silent check
 
-  if (!isSilent()) {
+  if (!silent) {
     logInfo('🏗️  Starting production build...');
   }
 
@@ -351,6 +361,9 @@ export default async function main() {
     setupGracefulShutdown(() => {
       logInfo(`🛑 Build operation interrupted`);
     });
+
+    // Cache verbose check for use throughout the build
+    const verbose = isVerbose();
 
     // Define build steps with uniform task functions
     const buildSteps = [
@@ -369,7 +382,7 @@ export default async function main() {
         task: () =>
           withBuildRetry(() => copyFiles(), {
             operation: 'copy-files',
-            verbose: isVerbose(),
+            verbose,
           }),
         description: 'Copying static files',
       },
@@ -378,20 +391,20 @@ export default async function main() {
         task: () =>
           withBuildRetry(() => createBundle(), {
             operation: 'webpack-bundle',
-            verbose: isVerbose(),
+            verbose,
           }),
         description: 'Creating webpack bundles',
       },
     ];
 
-    if (isVerbose()) {
+    if (verbose) {
       logInfo(`📋 Build pipeline: ${buildSteps.length} steps`);
     }
 
     // Execute build steps sequentially
     for (const [index, step] of buildSteps.entries()) {
       // eslint-disable-next-line no-await-in-loop
-      await executeStep(step, index, buildSteps.length);
+      await executeStep(step, index, buildSteps.length, silent);
     }
 
     // Success
@@ -399,40 +412,44 @@ export default async function main() {
     logInfo(`✅ Build completed in ${formatDuration(duration)}`);
 
     // Show deployment instructions
-    if (!isSilent()) {
-      logInfo('');
-      logInfo('📋 Next steps:');
-      logInfo('');
-      logInfo('  1️⃣  Install production dependencies (REQUIRED):');
-      logInfo(`     cd '${config.BUILD_DIR}' && npm install --production`);
-      logInfo('');
-      logInfo('  2️⃣  Test locally:');
-      logInfo(`     cd '${config.BUILD_DIR}'`);
-      logInfo(
+    if (!silent) {
+      const deploymentInstructions = [
+        '',
+        '📋 Next steps:',
+        '',
+        '  1️⃣  Install production dependencies (REQUIRED):',
+        `     cd '${config.BUILD_DIR}' && npm install --production`,
+        '',
+        '  2️⃣  Test locally:',
+        `     cd '${config.BUILD_DIR}'`,
         '     export NODE_ENV=production RSK_JWT_SECRET=$(openssl rand -base64 32)',
-      );
-      logInfo('     node server.js');
-      logInfo('');
-      logInfo('  3️⃣  Deploy:');
-      logInfo('     • Docker: See Dockerfile in project root');
-      logInfo(
+        '     node server.js',
+        '',
+        '  3️⃣  Deploy:',
+        '     • Docker: See Dockerfile in project root',
         `     • Server: Deploy '${config.BUILD_DIR}' directory with node_modules/`,
-      );
-      logInfo('');
-      logInfo(`⚠️  Important: Run server from '${config.BUILD_DIR}' directory`);
-      logInfo('   See docs/deployment.md for complete deployment guide');
-      logInfo('');
+        '',
+        `⚠️  Important: Run server from '${config.BUILD_DIR}' directory`,
+        '   See docs/deployment.md for complete deployment guide',
+        '',
+      ].join('\n');
+
+      logInfo(deploymentInstructions);
     }
 
-    if (isVerbose()) {
-      logInfo('📦 Build Summary:');
-      logInfo(`   📁 Output: '${config.BUILD_DIR}'`);
-      logInfo(`   📊 Steps: ${buildSteps.length}`);
-      logInfo('   📄 Files:');
-      logInfo(`      • '${config.BUILD_DIR}/server.js' (server bundle)`);
-      logInfo(`      • '${config.BUILD_DIR}/vendors.js' (server vendors)`);
-      logInfo(`      • '${config.BUILD_DIR}/public/assets/' (client assets)`);
-      logInfo(`      • '${config.BUILD_DIR}/package.json' (dependencies list)`);
+    if (verbose) {
+      const buildSummary = [
+        '📦 Build Summary:',
+        `   📁 Output: '${config.BUILD_DIR}'`,
+        `   📊 Steps: ${buildSteps.length}`,
+        '   📄 Files:',
+        `      • '${config.BUILD_DIR}/server.js' (server bundle)`,
+        `      • '${config.BUILD_DIR}/vendors.js' (server vendors)`,
+        `      • '${config.BUILD_DIR}/public/assets/' (client assets)`,
+        `      • '${config.BUILD_DIR}/package.json' (dependencies list)`,
+      ].join('\n');
+
+      logInfo(buildSummary);
     }
   } catch (error) {
     const duration = Date.now() - startTime;
@@ -445,17 +462,21 @@ export default async function main() {
             originalError: error,
           });
 
-    logErrorWithContext(buildError, { operation: 'build' });
+    logDetailedError(buildError, { operation: 'build' });
 
-    if (!isSilent()) {
-      logWarn('');
-      logWarn('💡 Troubleshooting tips:');
-      logWarn('   1. Try: npm run clean && npm run build');
-      logWarn('   2. Check for syntax errors in your code');
-      logWarn('   3. Ensure dependencies are installed: npm install');
-      logWarn('   4. Run with LOG_LEVEL=verbose for details');
-      logWarn('   5. See DEPLOYMENT.md for deployment issues');
-      logWarn('');
+    if (!silent) {
+      const troubleshootingTips = [
+        '',
+        '💡 Troubleshooting tips:',
+        '   1. Try: npm run clean && npm run build',
+        '   2. Check for syntax errors in your code',
+        '   3. Ensure dependencies are installed: npm install',
+        '   4. Run with LOG_LEVEL=verbose for details',
+        '   5. See DEPLOYMENT.md for deployment issues',
+        '',
+      ].join('\n');
+
+      logWarn(troubleshootingTips);
     }
 
     throw buildError;

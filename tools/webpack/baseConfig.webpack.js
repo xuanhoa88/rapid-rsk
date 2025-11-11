@@ -6,8 +6,9 @@
  */
 
 import path from 'path';
+import webpack from 'webpack';
 import config from '../config';
-import { getVerboseConfig } from '../lib/logger';
+import { isVerbose } from '../lib/logger';
 
 /** Get file naming pattern based on environment */
 const getFileNamePattern = (isDebug, hashType = 'hash') =>
@@ -139,8 +140,7 @@ export const createCSSRule = ({ isClient, isDebug, extractLoader }) => {
 
 export const isDebug = process.env.NODE_ENV !== 'production';
 
-// Get verbose configuration once and reuse throughout
-export const verboseConfig = getVerboseConfig();
+const verbose = isVerbose(); // Cache verbose check
 
 export const isAnalyze =
   process.argv.includes('--analyze') ||
@@ -149,10 +149,6 @@ export const isAnalyze =
 
 export const isProfile =
   process.argv.includes('--profile') || config.bundleProfile;
-
-// =============================================================================
-// REGEX PATTERNS FOR FILE MATCHING
-// =============================================================================
 
 // JavaScript files (including ES modules and CommonJS)
 export const reScript = /\.(js|jsx|[cm]js)$/i;
@@ -173,6 +169,30 @@ export const reSvg = /\.svg$/i;
 export const reHtml = /\.html$/i;
 export const reMarkdown = /\.(md|markdown)$/i;
 export const reText = /\.txt$/i;
+
+/**
+ * Create webpack.DefinePlugin instance
+ * Defines global constants that can be configured at compile time
+ *
+ * @param {Object} options - Configuration options
+ * @param {boolean} options.isBrowser - True for client bundle, false for server
+ * @param {boolean} options.isDebug - Development mode flag
+ * @param {Object} options.extraDefinitions - Additional definitions to merge (optional)
+ * @returns {webpack.DefinePlugin} DefinePlugin instance
+ */
+export const createDefinePluginConfig = ({
+  isBrowser,
+  isDebug,
+  ...extraDefinitions
+}) =>
+  new webpack.DefinePlugin({
+    // Browser flag - used to conditionally execute code based on environment
+    'process.env.BROWSER': !!isBrowser,
+    // Development flag - used for dev-only code (logging, debugging, etc.)
+    __DEV__: !!isDebug,
+    // Merge any additional definitions (e.g., RSK_ env vars for server)
+    ...extraDefinitions,
+  });
 
 // =============================================================================
 // COMMON WEBPACK CONFIGURATION
@@ -424,25 +444,25 @@ export default {
 
   // Stats output configuration
   stats: {
-    preset: verboseConfig.isVerbose ? 'normal' : 'errors-warnings',
+    preset: verbose ? 'normal' : 'errors-warnings',
     colors: true,
     // Show timing information
     timings: true,
     // Show built modules
-    modules: verboseConfig.isVerbose,
+    modules: verbose,
     // Show chunk information
-    chunks: verboseConfig.isDebug,
+    chunks: isDebug,
     // Show asset information
-    assets: verboseConfig.isVerbose,
+    assets: verbose,
     // Show reasons for including modules
-    reasons: verboseConfig.isDebug,
+    reasons: isDebug,
     // Show performance hints
     performance: !isDebug,
   },
 
   // Webpack 5 infrastructure logging
   infrastructureLogging: {
-    level: verboseConfig.isVerbose ? 'info' : 'warn',
+    level: verbose ? 'info' : 'warn',
   },
 
   // Watch mode configuration

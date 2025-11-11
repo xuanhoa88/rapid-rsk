@@ -19,13 +19,14 @@ import { isSilent, isVerbose, logError, logInfo } from '../lib/logger';
 import { clientConfig, SERVER_BUNDLE_PATH, serverConfig } from '../webpack';
 import clean from './clean';
 
-// Development server configuration
+const silent = isSilent(); // Cache silent check
+
 // Uses environment variables loaded by dotenv above
 const DEV_CONFIG = {
   port: parseInt(process.env.RSK_PORT, 10) || 3000,
   host: process.env.RSK_HOST || 'localhost',
   https: process.env.RSK_HTTPS === 'true',
-  open: !isSilent() && !process.env.CI,
+  open: !silent && !process.env.CI,
 };
 
 let server;
@@ -38,7 +39,7 @@ let app;
 function createCompilationPromise(name, compiler) {
   return new Promise((resolve, reject) => {
     compiler.hooks.compile.tap(name, () => {
-      if (!isSilent()) {
+      if (!silent) {
         logInfo(`🔄 Compiling '${name}'...`);
       }
     });
@@ -59,7 +60,7 @@ function createCompilationPromise(name, compiler) {
         return;
       }
 
-      if (!isSilent()) {
+      if (!silent) {
         logInfo(`✅ ${name} compiled`);
       }
 
@@ -292,7 +293,7 @@ function startBrowserSync() {
         open: DEV_CONFIG.open,
         notify: false,
         ui: false,
-        logLevel: isSilent() ? 'silent' : 'info',
+        logLevel: silent ? 'silent' : 'info',
         logPrefix: 'BS',
         files: false,
         reloadDelay: 0,
@@ -407,11 +408,15 @@ export default async function main() {
         ? error
         : new BuildError(`Development server failed: ${error.message}`);
 
-    logError(`\n❌ ${devError.message}`);
-    logError(`\n💡 Troubleshooting:`);
-    logError(`   1. Check if port ${DEV_CONFIG.port} is available`);
-    logError(`   2. Run: npm install`);
-    logError(`   3. Run: npm run clean`);
+    const errorMessage = [
+      `\n❌ ${devError.message}`,
+      `\n💡 Troubleshooting:`,
+      `   1. Check if port ${DEV_CONFIG.port} is available`,
+      `   2. Run: npm install`,
+      `   3. Run: npm run clean`,
+    ].join('\n');
+
+    logError(errorMessage);
 
     throw devError;
   }

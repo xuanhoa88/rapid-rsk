@@ -39,6 +39,7 @@ export async function withRetry(operation, options = {}) {
 
   let lastError;
   let currentDelay = delay;
+  const verbose = isVerbose();
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
@@ -65,7 +66,7 @@ export async function withRetry(operation, options = {}) {
         `⚠️  Attempt ${attempt + 1}/${maxRetries + 1} failed: ${error.message}`,
       );
 
-      if (isVerbose()) {
+      if (verbose) {
         logWarn(`   Retrying in ${currentDelay}ms...`);
       }
 
@@ -122,30 +123,34 @@ function getErrorSuggestion(errorCode) {
 }
 
 /**
- * Log error with context and suggestions
+ * Log detailed error with context, stack trace, and suggestions
+ * Use this for comprehensive error reporting with additional context
  */
-export function logErrorWithContext(error, context = {}) {
-  logError(`${error.message}`);
+export function logDetailedError(error, context = {}) {
+  const verbose = isVerbose(); // Cache verbose check
+  const errorParts = [error.message];
 
   // Show context in verbose mode
-  if (isVerbose() && (error.context || Object.keys(context).length > 0)) {
-    logError(
-      `Context: ${JSON.stringify({ ...error.context, ...context }, null, 2)}`,
+  if (verbose && (error.context || Object.keys(context).length > 0)) {
+    errorParts.push(
+      `\nContext: ${JSON.stringify({ ...error.context, ...context }, null, 2)}`,
     );
   }
 
   // Show stack trace in verbose mode
-  if (isVerbose() && error.stack) {
-    logError(`Stack trace:\n${error.stack}`);
+  if (verbose && error.stack) {
+    errorParts.push(`\nStack trace:\n${error.stack}`);
   }
 
   // Show suggestion for common errors
   if (error.code) {
     const suggestion = getErrorSuggestion(error.code);
     if (suggestion) {
-      logError(`💡 ${suggestion}`);
+      errorParts.push(`\n💡 ${suggestion}`);
     }
   }
+
+  logError(errorParts.join(''));
 }
 
 /**
@@ -162,19 +167,19 @@ export function setupGracefulShutdown(cleanupFn) {
         if (cleanupFn) await cleanupFn();
         process.exit(0);
       } catch (error) {
-        logErrorWithContext(error, { phase: 'cleanup', signal });
+        logDetailedError(error, { phase: 'cleanup', signal });
         process.exit(1);
       }
     });
   });
 
   process.on('uncaughtException', error => {
-    logErrorWithContext(error, { type: 'uncaughtException' });
+    logDetailedError(error, { type: 'uncaughtException' });
     process.exit(1);
   });
 
   process.on('unhandledRejection', reason => {
-    logErrorWithContext(new Error(`Unhandled rejection: ${reason}`), {
+    logDetailedError(new Error(`Unhandled rejection: ${reason}`), {
       type: 'unhandledRejection',
     });
     process.exit(1);

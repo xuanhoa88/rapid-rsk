@@ -12,13 +12,16 @@ import LoadablePlugin from '@loadable/webpack-plugin';
 import MiniCssExtractPlugin from 'mini-css-extract-plugin';
 import { merge } from 'webpack-merge';
 import config from '../config';
+import { isVerbose } from '../lib/logger';
 import baseConfig, {
   createCSSRule,
+  createDefinePluginConfig,
   isAnalyze,
   isDebug,
   isProfile,
-  verboseConfig,
 } from './baseConfig.webpack';
+
+const verbose = isVerbose(); // Cache verbose check
 
 /**
  * Configuration for the client-side bundle (client.js)
@@ -46,9 +49,9 @@ export default merge(baseConfig, {
   plugins: [
     // Define free variables
     // https://webpack.js.org/plugins/define-plugin/
-    // NODE_ENV is baked into the bundle for React optimizations
-    new webpack.DefinePlugin({
-      __DEV__: isDebug,
+    createDefinePluginConfig({
+      isDebug,
+      isBrowser: true, // Client bundle runs in browser
     }),
 
     // Loadable Components Plugin - generates loadable-stats.json for SSR
@@ -97,7 +100,7 @@ export default merge(baseConfig, {
             // Stats options for detailed analysis
             statsOptions: {
               source: false, // Exclude source code (reduces file size)
-              reasons: verboseConfig.isVerbose, // Why modules are included
+              reasons: verbose, // Why modules are included
               chunks: true, // Chunk information
               chunkModules: true, // Modules in each chunk
               modules: true, // Module information
@@ -110,7 +113,7 @@ export default merge(baseConfig, {
             },
 
             // Logging
-            logLevel: verboseConfig.isVerbose ? 'info' : 'warn',
+            logLevel: verbose ? 'info' : 'warn',
 
             // Default sizes to show
             defaultSizes: 'gzip', // Show gzipped sizes by default
@@ -122,7 +125,7 @@ export default merge(baseConfig, {
       : []),
 
     // Progress plugin for build feedback
-    ...(config.bundleProgressReporting && verboseConfig.isVerbose
+    ...(config.bundleProgressReporting && verbose
       ? [
           new webpack.ProgressPlugin({
             activeModules: true,

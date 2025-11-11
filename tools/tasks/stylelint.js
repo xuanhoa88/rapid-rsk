@@ -30,7 +30,7 @@
 import { performance } from 'perf_hooks';
 import stylelint from 'stylelint';
 import stylelintConfig from '../../.stylelintrc';
-import { BuildError, logErrorWithContext } from '../lib/errorHandler';
+import { BuildError, logDetailedError } from '../lib/errorHandler';
 import {
   formatDuration,
   isVerbose,
@@ -85,9 +85,11 @@ export default async function main() {
       `🎨 ${isFix ? 'Linting and fixing' : 'Linting'} CSS files: ${pattern}`,
     );
     if (isVerbose()) {
-      logVerbose(`   Pattern type: ${patternName}`);
-      logVerbose(`   Fix mode: ${isFix}`);
-      logVerbose(`   Quiet mode: ${isQuiet}`);
+      logVerbose(
+        `   Pattern type: ${patternName}\n` +
+          `   Fix mode: ${isFix}\n` +
+          `   Quiet mode: ${isQuiet}`,
+      );
     }
 
     // Run stylelint
@@ -157,15 +159,19 @@ export default async function main() {
     const duration = performance.now() - startTime;
 
     if (error instanceof BuildError) {
-      logErrorWithContext(error, {
+      logDetailedError(error, {
         operation: 'stylelint',
         duration: formatDuration(duration),
       });
     } else {
-      logError(`❌ Error running stylelint: ${error.message}`);
-      if (isVerbose() && error.stack) {
-        logError(`   Stack trace:\n${error.stack}`);
+      const verbose = isVerbose();
+      let errorMessage = `❌ Error running stylelint: ${error.message}`;
+
+      if (verbose && error.stack) {
+        errorMessage += `\n\n   Stack trace:\n${error.stack}`;
       }
+
+      logError(errorMessage);
     }
 
     throw error;

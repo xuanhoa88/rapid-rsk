@@ -10,13 +10,16 @@ import webpack from 'webpack';
 import { merge } from 'webpack-merge';
 import nodeExternals from 'webpack-node-externals';
 import config from '../config';
+import { isVerbose } from '../lib/logger';
 import baseConfig, {
   createCSSRule,
+  createDefinePluginConfig,
   isDebug,
   reStyle,
-  verboseConfig,
 } from './baseConfig.webpack';
 import { createDotenvDefinitions } from './dotenvPlugin.webpack';
+
+const verbose = isVerbose(); // Cache verbose check
 
 /**
  * Get the compiled server entry path from webpack output configuration
@@ -73,13 +76,11 @@ export default merge(baseConfig, {
   plugins: [
     // Define free variables
     // https://webpack.js.org/plugins/define-plugin/
-    new webpack.DefinePlugin({
-      __DEV__: isDebug,
+    createDefinePluginConfig({
+      isDebug,
+      isBrowser: false, // Server bundle runs in Node.js
       // Inject RSK_ prefixed environment variables
-      ...createDotenvDefinitions({
-        prefix: 'RSK_',
-        verbose: verboseConfig.isVerbose,
-      }),
+      ...createDotenvDefinitions({ prefix: 'RSK_', verbose }),
     }),
 
     // Add source-map-support to the entry file for better stack traces
