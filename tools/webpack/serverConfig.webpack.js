@@ -114,6 +114,9 @@ export default merge(baseConfig, {
       ...createDotenvDefinitions({ prefix: 'RSK_', verbose }),
     }),
 
+    // Note: Worker files are now imported directly via require.context
+    // No separate bundling needed since they run in the same process
+
     // Add source-map-support to the entry file for better stack traces
     // https://webpack.js.org/plugins/banner-plugin/
     new webpack.BannerPlugin({

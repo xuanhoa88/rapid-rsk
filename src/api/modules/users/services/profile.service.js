@@ -1,0 +1,429 @@
+/**
+ * React Starter Kit (https://github.com/xuanhoa88/rapid-rsk/)
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE.txt file in the root directory of this source tree.
+ */
+
+import { hashPassword, verifyPassword } from '../utils/password';
+import path from 'path';
+
+// ========================================================================
+// PROFILE MANAGEMENT SERVICES
+// ========================================================================
+
+/**
+ * Get user with profile information
+ *
+ * @param {string} userId - User ID
+ * @param {Object} models - Database models
+ * @returns {Promise<Object>} User with profile
+ * @throws {Error} If user not found
+ */
+export async function getUserWithProfile(userId, models) {
+  const { User, UserProfile } = models;
+
+  const user = await User.findByPk(userId, {
+    include: [{ model: UserProfile, as: 'profile' }],
+    attributes: { exclude: ['password'] },
+  });
+
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  return user;
+}
+
+/**
+ * Update user profile information
+ *
+ * @param {string} userId - User ID
+ * @param {Object} profileData - Profile data to update
+ * @param {Object} models - Database models
+ * @returns {Promise<Object>} Updated user with profile
+ * @throws {Error} If user not found
+ */
+export async function updateUserProfile(userId, profileData, models) {
+  const { User, UserProfile } = models;
+
+  const user = await User.findByPk(userId, {
+    include: [{ model: UserProfile, as: 'profile' }],
+  });
+
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  // Update profile data
+  if (user.profile) {
+    await user.profile.update(profileData);
+  } else {
+    // Create profile if it doesn't exist
+    await UserProfile.create({
+      userId,
+      ...profileData,
+    });
+  }
+
+  // Reload user with updated profile
+  await user.reload({
+    include: [{ model: UserProfile, as: 'profile' }],
+    attributes: { exclude: ['password'] },
+  });
+
+  return user;
+}
+
+/**
+ * Upload user avatar
+ *
+ * @param {string} userId - User ID
+ * @param {Object} file - Uploaded file object
+ * @param {Object} options - Options object
+ * @param {Object} options.models - Database models
+ * @param {Object} options.fs - Filesystem actions
+ * @returns {Promise<Object>} Updated user with profile
+ * @throws {Error} If user not found or file invalid
+ */
+export async function uploadUserAvatar(userId, file, { models, fs }) {
+  // Get models from app context
+  const { User, UserProfile } = models;
+
+  // Find user by ID
+  const user = await User.findByPk(userId, {
+    include: [{ model: UserProfile, as: 'profile' }],
+  });
+
+  // Check if user exists
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  // Store old avatar path for cleanup after successful upload
+  const oldAvatarPath = user.profile && user.profile.picture;
+
+  // Generate unique filename for avatar
+  const timestamp = Date.now();
+  const fileExtension = path.extname(file.originalname);
+  const fileName = `avatar_${userId}_${timestamp}${fileExtension}`;
+
+  // Prepare file data for upload
+  const fileData = {
+    fileName,
+    originalName: file.originalname,
+    buffer: file.buffer,
+    mimeType: file.mimetype,
+    size: file.size,
+  };
+
+  // Upload file using filesystem actions
+  const uploadResult = await fs.actions.uploadFile(fileData, {
+    directory: 'avatars', // Store avatars in a dedicated directory
+  });
+
+  if (!uploadResult.success) {
+    throw new Error(uploadResult.message || 'Failed to upload avatar');
+  }
+
+  // Update profile with new avatar path
+  const avatarPath = uploadResult.data.fileName;
+
+  if (user.profile) {
+    await user.profile.update({ picture: avatarPath });
+  } else {
+    await UserProfile.create({
+      userId,
+      picture: avatarPath,
+    });
+  }
+
+  // Delete old avatar AFTER successful upload and database update
+  if (oldAvatarPath) {
+    try {
+      await fs.actions.deleteFile(oldAvatarPath);
+    } catch (error) {
+      // Log error but don't fail the operation if old file deletion fails
+      console.warn('Failed to delete old avatar:', error.message);
+    }
+  }
+
+  // Reload user with updated profile
+  await user.reload({
+    include: [{ model: UserProfile, as: 'profile' }],
+    attributes: { exclude: ['password'] },
+  });
+
+  return user;
+}
+
+/**
+ * Remove user avatar
+ *
+ * @param {string} userId - User ID
+ * @param {Object} options - Options object
+ * @param {Object} options.models - Database models
+ * @param {Object} options.fs - Filesystem actions
+ * @returns {Promise<Object>} Updated user with profile
+ * @throws {Error} If user not found
+ */
+export async function removeUserAvatar(userId, { models, fs }) {
+  const { User, UserProfile } = models;
+
+  const user = await User.findByPk(userId, {
+    include: [{ model: UserProfile, as: 'profile' }],
+  });
+
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  if (user.profile && user.profile.picture) {
+    // Delete the avatar file from storage
+    try {
+      await fs.actions.deleteFile(user.profile.picture);
+    } catch (error) {
+      // Log error but don't fail the operation if file deletion fails
+      console.warn('Failed to delete avatar file:', error.message);
+    }
+
+    // Update profile to remove avatar reference
+    await user.profile.update({ picture: null });
+  }
+
+  // Reload user with updated profile
+  await user.reload({
+    include: [{ model: UserProfile, as: 'profile' }],
+    attributes: { exclude: ['password'] },
+  });
+
+  return user;
+}
+
+/**
+ * Change user password
+ *
+ * @param {string} userId - User ID
+ * @param {string} currentPassword - Current password
+ * @param {string} newPassword - New password
+ * @param {Object} models - Database models
+ * @returns {Promise<boolean>} Success status
+ * @throws {Error} If user not found or password invalid
+ */
+export async function changeUserPassword(
+  userId,
+  currentPassword,
+  newPassword,
+  models,
+) {
+  const { User } = models;
+
+  const user = await User.findByPk(userId);
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  // Verify current password
+  const isValidPassword = await verifyPassword(currentPassword, user.password);
+  if (!isValidPassword) {
+    throw new Error('Invalid current password');
+  }
+
+  // Hash new password
+  const hashedPassword = await hashPassword(newPassword);
+
+  // Update password
+  await user.update({ password: hashedPassword });
+
+  return true;
+}
+
+/**
+ * Get user activity log
+ *
+ * @param {string} userId - User ID
+ * @param {Object} options - Query options
+ * @param {Object} models - Database models
+ * @returns {Promise<Object>} Activity log with pagination
+ */
+export async function getUserActivity(userId, options, models) {
+  const { page = 1, limit = 10 } = options;
+  const offset = (page - 1) * limit;
+  const { UserLogin } = models;
+
+  if (!UserLogin) {
+    return {
+      activities: [],
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: 0,
+        pages: 0,
+      },
+    };
+  }
+
+  const { count, rows: activities } = await UserLogin.findAndCountAll({
+    where: { userId },
+    limit: parseInt(limit),
+    offset: parseInt(offset),
+    order: [['loginAt', 'DESC']],
+    attributes: ['id', 'ipAddress', 'userAgent', 'loginAt', 'success'],
+  });
+
+  return {
+    activities,
+    pagination: {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      total: count,
+      pages: Math.ceil(count / limit),
+    },
+  };
+}
+
+/**
+ * Update user preferences
+ *
+ * @param {string} userId - User ID
+ * @param {Object} preferences - User preferences
+ * @param {Object} models - Database models
+ * @returns {Promise<Object>} Updated preferences
+ */
+export async function updateUserPreferences(userId, preferences, models) {
+  const { UserProfile } = models;
+
+  // Find or create user profile
+  let profile = await UserProfile.findOne({ where: { userId } });
+
+  if (!profile) {
+    profile = await UserProfile.create({
+      userId,
+      preferences: preferences,
+    });
+  } else {
+    // Merge with existing preferences
+    const currentPreferences = profile.preferences || {};
+    const updatedPreferences = { ...currentPreferences, ...preferences };
+
+    await profile.update({ preferences: updatedPreferences });
+  }
+
+  return profile.preferences;
+}
+
+/**
+ * Get user preferences
+ *
+ * @param {string} userId - User ID
+ * @param {Object} models - Database models
+ * @returns {Promise<Object>} User preferences
+ */
+export async function getUserPreferences(userId, models) {
+  const { UserProfile } = models;
+
+  const profile = await UserProfile.findOne({
+    where: { userId },
+    attributes: ['preferences'],
+  });
+
+  return (
+    (profile && profile.preferences) || {
+      language: 'en',
+      timezone: 'UTC',
+      notifications: {
+        email: true,
+        push: true,
+        sms: false,
+      },
+      theme: 'light',
+    }
+  );
+}
+
+/**
+ * Delete user account
+ *
+ * @param {string} userId - User ID
+ * @param {string} password - User password for confirmation
+ * @param {Object} models - Database models
+ * @returns {Promise<boolean>} Success status
+ * @throws {Error} If user not found or password invalid
+ */
+export async function deleteUserAccount(userId, password, models) {
+  const { User, UserProfile } = models;
+
+  const user = await User.findByPk(userId);
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  // Verify password
+  const isValidPassword = await verifyPassword(password, user.password);
+  if (!isValidPassword) {
+    throw new Error('Invalid password');
+  }
+
+  // Delete user profile first (if exists)
+  await UserProfile.destroy({ where: { userId } });
+
+  // Delete user (this will cascade to related records)
+  await user.destroy();
+
+  return true;
+}
+
+/**
+ * Export user data (GDPR compliance)
+ *
+ * @param {string} userId - User ID
+ * @param {Object} models - Database models
+ * @returns {Promise<Object>} User data export
+ */
+export async function exportUserData(userId, models) {
+  const { User, UserProfile, UserLogin } = models;
+
+  const user = await User.findByPk(userId, {
+    include: [{ model: UserProfile, as: 'profile' }],
+    attributes: { exclude: ['password'] },
+  });
+
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  // Get login history
+  const loginHistory = UserLogin
+    ? await UserLogin.findAll({
+        where: { userId },
+        attributes: ['ipAddress', 'userAgent', 'loginAt', 'success'],
+        order: [['loginAt', 'DESC']],
+      })
+    : [];
+
+  return {
+    exportedAt: new Date().toISOString(),
+    user: {
+      id: user.id,
+      email: user.email,
+      emailConfirmed: user.emailConfirmed,
+      isActive: user.isActive,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      role: user.role,
+    },
+    profile: user.profile
+      ? {
+          displayName: user.profile.displayName,
+          firstName: user.profile.firstName,
+          lastName: user.profile.lastName,
+          bio: user.profile.bio,
+          location: user.profile.location,
+          website: user.profile.website,
+          picture: user.profile.picture,
+          preferences: user.profile.preferences,
+        }
+      : null,
+    loginHistory,
+  };
+}

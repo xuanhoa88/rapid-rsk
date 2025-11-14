@@ -575,9 +575,7 @@ export default async function main() {
     );
 
     // Parse extensions string into array
-    const extensions = I18N_SOURCE_EXTENSIONS
-      .split(',')
-      .map(ext => ext.trim());
+    const extensions = I18N_SOURCE_EXTENSIONS.split(',').map(ext => ext.trim());
 
     // Ensure translations directory exists
     await withFileSystemRetry(() => ensureDir(I18N_TRANSLATIONS_DIR), {

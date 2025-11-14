@@ -1,0 +1,92 @@
+/**
+ * React Starter Kit (https://github.com/xuanhoa88/rapid-rsk/)
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE.txt file in the root directory of this source tree.
+ */
+
+/**
+ * Upload Presets Configuration
+ */
+
+import path from 'path';
+import { SIZE_LIMITS, UPLOAD_DIR } from './constants';
+import { getMimeTypesForCategories } from './file-types';
+
+export const UPLOAD_PRESETS = Object.freeze({
+  avatar: {
+    destination:
+      process.env.RSK_FS_AVATAR_DIR || path.join(UPLOAD_DIR, 'avatars'),
+    maxFileSize:
+      parseInt(process.env.RSK_FS_AVATAR_MAX_SIZE, 10) || 2 * SIZE_LIMITS.MB,
+    allowedMimeTypes: getMimeTypesForCategories(['image']),
+    maxFiles: 1,
+    fileFieldName: 'avatar',
+    generateSecureFileName: true,
+    organizeByDate: false,
+    organizeByCategory: false,
+    organizeByUser: true,
+    enableCompression: true,
+    compressionQuality: 80,
+  },
+
+  document: {
+    destination:
+      process.env.RSK_FS_DOCUMENT_DIR || path.join(UPLOAD_DIR, 'documents'),
+    maxFileSize:
+      parseInt(process.env.RSK_FS_DOCUMENT_MAX_SIZE, 10) || 10 * SIZE_LIMITS.MB,
+    allowedMimeTypes: getMimeTypesForCategories(['document']),
+    maxFiles: 10,
+    fileFieldName: 'documents',
+    generateSecureFileName: true,
+    organizeByDate: true,
+    organizeByCategory: true,
+    organizeByUser: true,
+    enableCompression: false,
+  },
+
+  media: {
+    destination: process.env.RSK_FS_MEDIA_DIR || path.join(UPLOAD_DIR, 'media'),
+    maxFileSize:
+      parseInt(process.env.RSK_FS_MEDIA_MAX_SIZE, 10) || 50 * SIZE_LIMITS.MB,
+    allowedMimeTypes: getMimeTypesForCategories(['image', 'video', 'audio']),
+    maxFiles: 20,
+    fileFieldName: 'media',
+    generateSecureFileName: true,
+    organizeByDate: true,
+    organizeByCategory: true,
+    organizeByUser: false,
+    enableCompression: true,
+    compressionQuality: 85,
+  },
+
+  archive: {
+    destination:
+      process.env.RSK_FS_ARCHIVE_DIR || path.join(UPLOAD_DIR, 'archives'),
+    maxFileSize:
+      parseInt(process.env.RSK_FS_ARCHIVE_MAX_SIZE, 10) || 100 * SIZE_LIMITS.MB,
+    allowedMimeTypes: getMimeTypesForCategories(['archive']),
+    maxFiles: 5,
+    fileFieldName: 'archives',
+    generateSecureFileName: true,
+    organizeByDate: true,
+    organizeByCategory: false,
+    organizeByUser: true,
+    enableCompression: false,
+  },
+
+  general: {
+    destination:
+      process.env.RSK_FS_GENERAL_DIR || path.join(UPLOAD_DIR, 'general'),
+    maxFileSize:
+      parseInt(process.env.RSK_FS_GENERAL_MAX_SIZE, 10) || 25 * SIZE_LIMITS.MB,
+    allowedMimeTypes: null, // Allow all types
+    maxFiles: 15,
+    fileFieldName: 'files',
+    generateSecureFileName: true,
+    organizeByDate: false,
+    organizeByCategory: true,
+    organizeByUser: false,
+    enableCompression: false,
+  },
+});

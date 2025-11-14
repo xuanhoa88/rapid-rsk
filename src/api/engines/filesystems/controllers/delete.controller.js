@@ -1,0 +1,127 @@
+/**
+ * React Starter Kit (https://github.com/xuanhoa88/rapid-rsk/)
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE.txt file in the root directory of this source tree.
+ */
+
+/**
+ * Delete Controller
+ *
+ * Handles file deletion operations.
+ */
+
+import * as filesystemActions from '../actions';
+import workerService from '../workers';
+
+/**
+ * Hybrid decision logic for delete operations
+ * @param {Array} fileNames - Array of file names
+ * @param {Object} options - Decision options
+ * @returns {Object} Decision result
+ */
+function makeDeleteDecision(fileNames, options = {}) {
+  const thresholds = {
+    batchDeleteThreshold: options.batchDeleteThreshold || 10,
+  };
+
+  if (!Array.isArray(fileNames)) {
+    return {
+      shouldUseWorker: false,
+      reason: 'Invalid file names data',
+      operation: 'delete',
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  const shouldUseWorker = fileNames.length >= thresholds.batchDeleteThreshold;
+  const reason = shouldUseWorker
+    ? `Batch delete (${fileNames.length} files)`
+    : 'Few files, main process sufficient';
+
+  return {
+    shouldUseWorker,
+    reason,
+    operation: 'delete',
+    timestamp: new Date().toISOString(),
+  };
+}
+
+/**
+ * Delete files
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Object} options - Controller options
+ */
+export async function deleteFiles(req, res, options = {}) {
+  try {
+    const { files, fileName } = req.body;
+    let fileNames;
+
+    // Parse file names from different formats
+    if (files) {
+      fileNames = Array.isArray(files) ? files : [files];
+    } else if (fileName) {
+      fileNames = Array.isArray(fileName) ? fileName : [fileName];
+    } else {
+      return res.status(400).json({
+        success: false,
+        error: 'Either files array or fileName is required',
+      });
+    }
+
+    // Use hybrid decision service to determine processing method
+    const decision = makeDeleteDecision(fileNames, options);
+
+    let result;
+    if (decision.shouldUseWorker) {
+      // Use worker service for batch delete
+      result = await workerService.processDelete(fileNames);
+    } else {
+      // Use main process for few files
+      const results = await Promise.allSettled(
+        fileNames.map(async fileName => {
+          try {
+            const result = await filesystemActions.deleteFile(fileName);
+            return result;
+          } catch (error) {
+            return {
+              success: false,
+              data: { fileName },
+              message: `Failed to delete file: ${fileName}`,
+              error,
+            };
+          }
+        }),
+      );
+
+      const successful = results
+        .filter(r => r.status === 'fulfilled' && r.value.success)
+        .map(r => r.value);
+      const failed = results
+        .filter(r => r.status === 'rejected' || !r.value.success)
+        .map(r => r.reason || r.value);
+
+      result = {
+        success: true,
+        data: {
+          successful,
+          failed,
+          totalFiles: fileNames.length,
+          successCount: successful.length,
+          failCount: failed.length,
+        },
+        message: `Deleted ${successful.length} of ${fileNames.length} files successfully`,
+      };
+    }
+
+    res.json(result);
+  } catch (error) {
+    console.error('Delete error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Delete failed',
+      details: error.message,
+    });
+  }
+}

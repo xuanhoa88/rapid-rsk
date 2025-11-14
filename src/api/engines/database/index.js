@@ -7,6 +7,3 @@
 
 // Database connection
 export { default as sequelize } from './sequelize';
-
-// Models initialization
-export { default as initializeModels } from './models';

@@ -8,16 +8,27 @@
 import routes from './news.routes';
 
 /**
- * News Module
+ * News Module Factory
  *
  * This module provides news feed data.
  * Routes are mounted directly on the router (will be under /api when mounted by API bootstrap).
  *
- * @param {Object} deps - Dependencies injected by API
+ * Module Structure:
+ * - Routes: GET /news - Returns list of news items
+ * - No models (uses mock data)
+ * - No authentication required
+ *
+ * @param {Object} deps - Dependencies injected by API bootstrap
  * @param {Function} deps.Router - Express Router constructor
+ * @param {Object} app - Express app instance (for accessing app-level settings)
  * @returns {Router} Express router with news routes
+ *
+ * @example
+ * // Called by API bootstrap during module discovery
+ * const newsRouter = newsModule({ Router }, app);
+ * // Router will be mounted at /api/news
  */
-export default function main({ Router }) {
+export default function newsModule({ Router }, app) {
   const router = Router();
 
   // Mount news routes directly
