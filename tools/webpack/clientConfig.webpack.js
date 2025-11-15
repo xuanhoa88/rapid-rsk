@@ -193,7 +193,7 @@ export default merge(baseConfig, {
           }),
         ]
       : []),
-  ],
+  ].filter(Boolean),
 
   // Client-specific optimization configuration
   // https://webpack.js.org/configuration/optimization/

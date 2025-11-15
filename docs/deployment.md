@@ -31,7 +31,7 @@ build/
   ├── LICENSE.txt            # License file
   └── public/
       ├── assets/            # Client bundles (JS, CSS, images)
-      ├── favicon.ico        # Favicon
+      ├── rsk.ico            # Favicon
       ├── robots.txt         # SEO
       └── *.xml, *.webmanifest  # PWA and browser configs
 ```

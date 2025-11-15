@@ -12,4 +12,7 @@ export * as database from './database';
 export * as http from './http';
 
 // Filesystems engine
-export * as filesystems from './filesystems';
+export * as fs from './fs';
+
+// Authentication utilities
+export * as auth from './auth';

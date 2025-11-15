@@ -5,15 +5,6 @@
  * LICENSE.txt file in the root directory of this source tree.
  */
 
-// Authentication middlewares
-export {
-  requireAuth,
-  optionalAuthenticate,
-  requireApiKey,
-  requireBearerToken,
-  requireAnyAuth,
-} from './auth.middleware';
-
 // Role-based middlewares
 export {
   requireRole,

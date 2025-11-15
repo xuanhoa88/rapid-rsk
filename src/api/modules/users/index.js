@@ -54,13 +54,11 @@ import {
  * @example
  * // Other modules can access user userMiddlewares
  * const userMiddlewares = req.app.get('userMiddlewares');
- * router.get('/protected', userMiddlewares.requireAuth, controller.action);
  */
 export default function userModule(deps, app) {
   const { Router } = deps;
 
   // Register global middlewares in app settings for reuse by other modules
-  // Access pattern: const { requireAuth, requireRole } = req.app.get('userMiddlewares');
   app.set('userMiddlewares', userMiddlewares);
 
   // Create single router instance for user routes
@@ -72,7 +70,7 @@ export default function userModule(deps, app) {
 
   // Authentication routes (public and authenticated)
   // Handles: /users/register, /users/login, /users/logout, /users/me
-  router.use('/users', authRoutes(deps, userMiddlewares));
+  router.use('/users', authRoutes(deps, userMiddlewares, app));
 
   // Profile management routes (authenticated users)
   // Handles: /users/profile, /users/avatar, /users/password
@@ -80,15 +78,15 @@ export default function userModule(deps, app) {
 
   // User administration routes (admin only)
   // Handles: /users/list, /users/:id, /users/:id/role, /users/:id/status
-  router.use('/users', userAdminRoutes(deps, userMiddlewares));
+  router.use('/users', userAdminRoutes(deps, userMiddlewares, app));
 
   // RBAC management routes (permission-based)
   // Handles: /users/roles, /users/permissions, /users/groups, /users/initialize
-  router.use('/users', rbacRoutes(deps, userMiddlewares));
+  router.use('/users', rbacRoutes(deps, userMiddlewares, app));
 
   // Demo and example routes
   // Handles: /users/admin/dashboard, /users/team/workspace, /users/developer/tools
-  router.use('/users', demoRoutes(deps, userMiddlewares));
+  router.use('/users', demoRoutes(deps, userMiddlewares, app));
 
   console.info('✅ User module loaded with modular routes');
 

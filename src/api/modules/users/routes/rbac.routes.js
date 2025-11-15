@@ -24,12 +24,18 @@ import {
  * @param {Object} deps - Dependencies injected by parent router
  * @param {Function} deps.Router - Express Router constructor
  * @param {Object} middlewares - Authentication and authorization middlewares
+ * @param {Object} app - Express application instance
  * @returns {Router} Express router with RBAC routes
  */
-export default function rbacRoutes(deps, middlewares) {
-  const { Router } = deps;
-  const { requireAuth, requirePermission, requireAnyPermission } = middlewares;
-  const router = Router();
+export default function rbacRoutes(deps, middlewares, app) {
+  const { requirePermission, requireAnyPermission } = middlewares;
+  const router = deps.Router();
+
+  // Create auth middleware instance
+  const auth = app.get('auth');
+  const requireAuth = auth.middlewares.requireAuth({
+    jwtSecret: app.get('jwtSecret'),
+  });
 
   // ========================================================================
   // ROLE MANAGEMENT ROUTES

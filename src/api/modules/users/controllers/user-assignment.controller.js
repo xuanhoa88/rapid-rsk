@@ -6,13 +6,7 @@
  */
 
 import { userRbacService } from '../services';
-import {
-  sendSuccess,
-  sendError,
-  sendValidationError,
-  sendNotFound,
-  sendServerError,
-} from '../../../engines/http';
+// Note: HTTP utilities are accessed via req.app.get('http')
 
 // ========================================================================
 // USER ASSIGNMENT CONTROLLERS
@@ -27,13 +21,14 @@ import {
  * @param {Object} res - Express response object
  */
 export async function assignRolesToUser(req, res) {
+  const http = req.app.get('http');
   try {
     const { id } = req.params;
     const { roleIds } = req.body;
 
     // Validate input
     if (!Array.isArray(roleIds)) {
-      return sendValidationError(res, {
+      return http.sendValidationError(res, {
         roleIds: 'Role IDs must be an array',
       });
     }
@@ -44,19 +39,19 @@ export async function assignRolesToUser(req, res) {
     // Assign roles
     const user = await userRbacService.assignRolesToUser(id, roleIds, models);
 
-    return sendSuccess(res, { user });
+    return http.sendSuccess(res, { user });
   } catch (error) {
     if (error.message === 'User not found') {
-      return sendNotFound(res, error.message);
+      return http.sendNotFound(res, error.message);
     }
 
     if (error.message.includes('roles not found')) {
-      return sendValidationError(res, {
+      return http.sendValidationError(res, {
         roleIds: error.message,
       });
     }
 
-    return sendServerError(res, 'Failed to assign roles to user');
+    return http.sendServerError(res, 'Failed to assign roles to user');
   }
 }
 
@@ -69,6 +64,7 @@ export async function assignRolesToUser(req, res) {
  * @param {Object} res - Express response object
  */
 export async function getUserRoles(req, res) {
+  const http = req.app.get('http');
   try {
     const { id } = req.params;
     const models = req.app.get('models');
@@ -93,10 +89,10 @@ export async function getUserRoles(req, res) {
     });
 
     if (!user) {
-      return sendNotFound(res, 'User not found');
+      return http.sendNotFound(res, 'User not found');
     }
 
-    return sendSuccess(res, {
+    return http.sendSuccess(res, {
       user: {
         id: user.id,
         email: user.email,
@@ -105,7 +101,7 @@ export async function getUserRoles(req, res) {
       roles: user.roles,
     });
   } catch (error) {
-    return sendServerError(res, 'Failed to get user roles');
+    return http.sendServerError(res, 'Failed to get user roles');
   }
 }
 
@@ -118,13 +114,14 @@ export async function getUserRoles(req, res) {
  * @param {Object} res - Express response object
  */
 export async function assignGroupsToUser(req, res) {
+  const http = req.app.get('http');
   try {
     const { id } = req.params;
     const { groupIds } = req.body;
 
     // Validate input
     if (!Array.isArray(groupIds)) {
-      return sendValidationError(res, {
+      return http.sendValidationError(res, {
         groupIds: 'Group IDs must be an array',
       });
     }
@@ -135,19 +132,19 @@ export async function assignGroupsToUser(req, res) {
     // Assign groups
     const user = await userRbacService.assignGroupsToUser(id, groupIds, models);
 
-    return sendSuccess(res, { user });
+    return http.sendSuccess(res, { user });
   } catch (error) {
     if (error.message === 'User not found') {
-      return sendNotFound(res, error.message);
+      return http.sendNotFound(res, error.message);
     }
 
     if (error.message.includes('groups not found')) {
-      return sendValidationError(res, {
+      return http.sendValidationError(res, {
         groupIds: error.message,
       });
     }
 
-    return sendServerError(res, 'Failed to assign groups to user');
+    return http.sendServerError(res, 'Failed to assign groups to user');
   }
 }
 
@@ -160,6 +157,7 @@ export async function assignGroupsToUser(req, res) {
  * @param {Object} res - Express response object
  */
 export async function getUserGroups(req, res) {
+  const http = req.app.get('http');
   try {
     const { id } = req.params;
     const models = req.app.get('models');
@@ -184,10 +182,10 @@ export async function getUserGroups(req, res) {
     });
 
     if (!user) {
-      return sendNotFound(res, 'User not found');
+      return http.sendNotFound(res, 'User not found');
     }
 
-    return sendSuccess(res, {
+    return http.sendSuccess(res, {
       user: {
         id: user.id,
         email: user.email,
@@ -196,7 +194,7 @@ export async function getUserGroups(req, res) {
       groups: user.groups,
     });
   } catch (error) {
-    return sendServerError(res, 'Failed to get user groups');
+    return http.sendServerError(res, 'Failed to get user groups');
   }
 }
 
@@ -209,6 +207,7 @@ export async function getUserGroups(req, res) {
  * @param {Object} res - Express response object
  */
 export async function getUserPermissions(req, res) {
+  const http = req.app.get('http');
   try {
     const { id } = req.params;
 
@@ -218,13 +217,13 @@ export async function getUserPermissions(req, res) {
     // Get user permissions
     const permissions = await userRbacService.getUserPermissions(id, models);
 
-    return sendSuccess(res, { permissions });
+    return http.sendSuccess(res, { permissions });
   } catch (error) {
     if (error.message === 'User not found') {
-      return sendNotFound(res, error.message);
+      return http.sendNotFound(res, error.message);
     }
 
-    return sendServerError(res, 'Failed to get user permissions');
+    return http.sendServerError(res, 'Failed to get user permissions');
   }
 }
 
@@ -237,6 +236,7 @@ export async function getUserPermissions(req, res) {
  * @param {Object} res - Express response object
  */
 export async function checkUserPermission(req, res) {
+  const http = req.app.get('http');
   try {
     const { id, permission } = req.params;
 
@@ -250,17 +250,17 @@ export async function checkUserPermission(req, res) {
       models,
     );
 
-    return sendSuccess(res, {
+    return http.sendSuccess(res, {
       userId: id,
       permission,
       hasPermission,
     });
   } catch (error) {
     if (error.message === 'User not found') {
-      return sendNotFound(res, error.message);
+      return http.sendNotFound(res, error.message);
     }
 
-    return sendServerError(res, 'Failed to check user permission');
+    return http.sendServerError(res, 'Failed to check user permission');
   }
 }
 
@@ -273,6 +273,7 @@ export async function checkUserPermission(req, res) {
  * @param {Object} res - Express response object
  */
 export async function removeRoleFromUser(req, res) {
+  const http = req.app.get('http');
   try {
     const { id, roleId } = req.params;
     const models = req.app.get('models');
@@ -280,22 +281,22 @@ export async function removeRoleFromUser(req, res) {
 
     const user = await User.findByPk(id);
     if (!user) {
-      return sendNotFound(res, 'User not found');
+      return http.sendNotFound(res, 'User not found');
     }
 
     const role = await Role.findByPk(roleId);
     if (!role) {
-      return sendNotFound(res, 'Role not found');
+      return http.sendNotFound(res, 'Role not found');
     }
 
     // Remove role from user
     await user.removeRole(role);
 
-    return sendSuccess(res, {
+    return http.sendSuccess(res, {
       message: `Role '${role.name}' removed from user successfully`,
     });
   } catch (error) {
-    return sendServerError(res, 'Failed to remove role from user');
+    return http.sendServerError(res, 'Failed to remove role from user');
   }
 }
 
@@ -308,6 +309,7 @@ export async function removeRoleFromUser(req, res) {
  * @param {Object} res - Express response object
  */
 export async function removeGroupFromUser(req, res) {
+  const http = req.app.get('http');
   try {
     const { id, groupId } = req.params;
     const models = req.app.get('models');
@@ -315,21 +317,21 @@ export async function removeGroupFromUser(req, res) {
 
     const user = await User.findByPk(id);
     if (!user) {
-      return sendNotFound(res, 'User not found');
+      return http.sendNotFound(res, 'User not found');
     }
 
     const group = await Group.findByPk(groupId);
     if (!group) {
-      return sendNotFound(res, 'Group not found');
+      return http.sendNotFound(res, 'Group not found');
     }
 
     // Remove group from user
     await user.removeGroup(group);
 
-    return sendSuccess(res, {
+    return http.sendSuccess(res, {
       message: `Group '${group.name}' removed from user successfully`,
     });
   } catch (error) {
-    return sendServerError(res, 'Failed to remove group from user');
+    return http.sendServerError(res, 'Failed to remove group from user');
   }
 }

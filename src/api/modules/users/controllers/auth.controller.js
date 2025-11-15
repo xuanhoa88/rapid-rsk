@@ -5,16 +5,7 @@
  * LICENSE.txt file in the root directory of this source tree.
  */
 
-import { authService } from '../services';
-import { generateToken, setTokenCookie, clearTokenCookie } from '../utils/jwt';
-import {
-  sendSuccess,
-  sendError,
-  sendValidationError,
-  sendUnauthorized,
-  sendNotFound,
-  sendServerError,
-} from '../../../engines/http';
+import { authService, profileService } from '../services';
 import { validateRegistration, validateLogin } from '../utils/validation';
 
 // ========================================================================
@@ -30,6 +21,8 @@ import { validateRegistration, validateLogin } from '../utils/validation';
  * @param {Object} res - Express response object
  */
 export async function register(req, res) {
+  const http = req.app.get('http');
+
   try {
     const { email, password, displayName } = req.body;
 
@@ -40,11 +33,12 @@ export async function register(req, res) {
       displayName,
     });
     if (Object.keys(validationErrors).length > 0) {
-      return sendValidationError(res, validationErrors);
+      return http.sendValidationError(res, validationErrors);
     }
 
-    // Get models from app context
+    // Get models and auth utilities from app context
     const models = req.app.get('models');
+    const auth = req.app.get('auth');
 
     // Register user
     const user = await authService.registerUser(
@@ -53,21 +47,21 @@ export async function register(req, res) {
         password,
         displayName,
       },
-      models,
+      { models, auth },
     );
 
-    // Generate JWT token
-    const token = generateToken(
+    // Generate JWT token using consolidated JWT utilities
+    const token = auth.jwt.generateTypedToken(
+      'access',
       { id: user.id, email: user.email },
       req.app.get('jwtSecret'),
-      req.app.get('jwtExpiresIn'),
     );
 
     // Set token cookie
-    setTokenCookie(res, token);
+    auth.setTokenCookie(res, token);
 
     // Return user data
-    return sendSuccess(
+    return http.sendSuccess(
       res,
       {
         user: {
@@ -91,10 +85,10 @@ export async function register(req, res) {
     );
   } catch (error) {
     if (error.message === 'User already exists') {
-      return sendError(res, 'User with this email already exists', 409);
+      return http.sendError(res, 'User with this email already exists', 409);
     }
 
-    return sendServerError(res, 'Registration failed');
+    return http.sendServerError(res, 'Registration failed');
   }
 }
 
@@ -107,33 +101,38 @@ export async function register(req, res) {
  * @param {Object} res - Express response object
  */
 export async function login(req, res) {
+  const http = req.app.get('http');
   try {
     const { email, password } = req.body;
 
     // Validate input
     const validationErrors = validateLogin({ email, password });
     if (Object.keys(validationErrors).length > 0) {
-      return sendValidationError(res, validationErrors);
+      return http.sendValidationError(res, validationErrors);
     }
 
-    // Get models from app context
+    // Get models and auth utilities from app context
     const models = req.app.get('models');
+    const auth = req.app.get('auth');
 
     // Authenticate user
-    const user = await authService.authenticateUser(email, password, models);
+    const user = await authService.authenticateUser(email, password, {
+      models,
+      auth,
+    });
 
-    // Generate JWT token
-    const token = generateToken(
+    // Generate JWT token using consolidated JWT utilities
+    const token = auth.jwt.generateTypedToken(
+      'access',
       { id: user.id, email: user.email },
       req.app.get('jwtSecret'),
-      req.app.get('jwtExpiresIn'),
     );
 
     // Set token cookie
-    setTokenCookie(res, token);
+    auth.setTokenCookie(res, token);
 
     // Return user data
-    return sendSuccess(res, {
+    return http.sendSuccess(res, {
       user: {
         id: user.id,
         email: user.email,
@@ -153,14 +152,14 @@ export async function login(req, res) {
     });
   } catch (error) {
     if (error.message === 'Invalid credentials') {
-      return sendUnauthorized(res, 'Invalid email or password');
+      return http.sendUnauthorized(res, 'Invalid email or password');
     }
 
     if (error.message === 'Account is inactive') {
-      return sendUnauthorized(res, 'Account is inactive');
+      return http.sendUnauthorized(res, 'Account is inactive');
     }
 
-    return sendServerError(res, 'Login failed');
+    return http.sendServerError(res, 'Login failed');
   }
 }
 
@@ -173,13 +172,16 @@ export async function login(req, res) {
  * @param {Object} res - Express response object
  */
 export async function logout(req, res) {
+  const http = req.app.get('http');
   try {
-    // Clear token cookie
-    clearTokenCookie(res);
+    const auth = req.app.get('auth');
 
-    return sendSuccess(res, { message: 'Logged out successfully' });
+    // Clear token cookie
+    auth.clearTokenCookie(res);
+
+    return http.sendSuccess(res, { message: 'Logged out successfully' });
   } catch (error) {
-    return sendServerError(res, 'Logout failed');
+    return http.sendServerError(res, 'Logout failed');
   }
 }
 
@@ -192,18 +194,19 @@ export async function logout(req, res) {
  * @param {Object} res - Express response object
  */
 export async function getCurrentUser(req, res) {
+  const http = req.app.get('http');
   try {
     // Get models from app context
     const models = req.app.get('models');
 
     // Get user with profile
-    const user = await authService.getUserWithProfile(req.user.id, models);
+    const user = await profileService.getUserWithProfile(req.user.id, models);
 
     if (!user) {
-      return sendNotFound(res, 'User not found');
+      return http.sendNotFound(res, 'User not found');
     }
 
-    return sendSuccess(res, {
+    return http.sendSuccess(res, {
       user: {
         id: user.id,
         email: user.email,
@@ -222,7 +225,7 @@ export async function getCurrentUser(req, res) {
       },
     });
   } catch (error) {
-    return sendServerError(res, 'Failed to get user information');
+    return http.sendServerError(res, 'Failed to get user information');
   }
 }
 
@@ -235,20 +238,25 @@ export async function getCurrentUser(req, res) {
  * @param {Object} res - Express response object
  */
 export async function refreshToken(req, res) {
+  const http = req.app.get('http');
   try {
-    // Generate new JWT token
-    const token = generateToken(
-      { id: req.user.id, email: req.user.email },
+    // Generate new JWT token using global auth engine
+    const auth = req.app.get('auth');
+    const token = auth.jwt.generateTypedToken(
+      'access',
+      {
+        id: req.user.id,
+        email: req.user.email,
+      },
       req.app.get('jwtSecret'),
-      req.app.get('jwtExpiresIn'),
     );
 
     // Set new token cookie
-    setTokenCookie(res, token);
+    auth.setTokenCookie(res, token);
 
-    return sendSuccess(res, { message: 'Token refreshed successfully' });
+    return http.sendSuccess(res, { message: 'Token refreshed successfully' });
   } catch (error) {
-    return sendServerError(res, 'Failed to refresh token');
+    return http.sendServerError(res, 'Failed to refresh token');
   }
 }
 
@@ -261,11 +269,12 @@ export async function refreshToken(req, res) {
  * @param {Object} res - Express response object
  */
 export async function verifyEmail(req, res) {
+  const http = req.app.get('http');
   try {
     const { token } = req.body;
 
     if (!token) {
-      return sendValidationError(res, {
+      return http.sendValidationError(res, {
         token: 'Verification token is required',
       });
     }
@@ -276,7 +285,7 @@ export async function verifyEmail(req, res) {
     // Verify email with token
     const user = await authService.verifyEmail(token, models);
 
-    return sendSuccess(res, {
+    return http.sendSuccess(res, {
       message: 'Email verified successfully',
       user: {
         id: user.id,
@@ -286,10 +295,10 @@ export async function verifyEmail(req, res) {
     });
   } catch (error) {
     if (error.message === 'Invalid or expired token') {
-      return sendError(res, 'Invalid or expired verification token', 400);
+      return http.sendError(res, 'Invalid or expired verification token', 400);
     }
 
-    return sendServerError(res, 'Email verification failed');
+    return http.sendServerError(res, 'Email verification failed');
   }
 }
 
@@ -302,11 +311,12 @@ export async function verifyEmail(req, res) {
  * @param {Object} res - Express response object
  */
 export async function forgotPassword(req, res) {
+  const http = req.app.get('http');
   try {
     const { email } = req.body;
 
     if (!email) {
-      return sendValidationError(res, {
+      return http.sendValidationError(res, {
         email: 'Email is required',
       });
     }
@@ -318,11 +328,14 @@ export async function forgotPassword(req, res) {
     await authService.requestPasswordReset(email, models);
 
     // Always return success for security (don't reveal if email exists)
-    return sendSuccess(res, {
+    return http.sendSuccess(res, {
       message: 'If the email exists, a password reset link has been sent',
     });
   } catch (error) {
-    return sendServerError(res, 'Failed to process password reset request');
+    return http.sendServerError(
+      res,
+      'Failed to process password reset request',
+    );
   }
 }
 
@@ -335,6 +348,7 @@ export async function forgotPassword(req, res) {
  * @param {Object} res - Express response object
  */
 export async function resetPassword(req, res) {
+  const http = req.app.get('http');
   try {
     const { token, password } = req.body;
 
@@ -344,23 +358,24 @@ export async function resetPassword(req, res) {
     if (!password) errors.password = 'New password is required';
 
     if (Object.keys(errors).length > 0) {
-      return sendValidationError(res, errors);
+      return http.sendValidationError(res, errors);
     }
 
-    // Get models from app context
+    // Get models and auth utilities from app context
     const models = req.app.get('models');
+    const auth = req.app.get('auth');
 
     // Reset password with token
-    await authService.resetPassword(token, password, models);
+    await authService.resetPassword(token, password, { models, auth });
 
-    return sendSuccess(res, {
+    return http.sendSuccess(res, {
       message: 'Password reset successfully',
     });
   } catch (error) {
     if (error.message === 'Invalid or expired token') {
-      return sendError(res, 'Invalid or expired reset token', 400);
+      return http.sendError(res, 'Invalid or expired reset token', 400);
     }
 
-    return sendServerError(res, 'Password reset failed');
+    return http.sendServerError(res, 'Password reset failed');
   }
 }

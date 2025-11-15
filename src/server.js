@@ -8,6 +8,7 @@
 import bodyParser from 'body-parser';
 import cookieParser from 'cookie-parser';
 import express from 'express';
+import expressProxy from 'express-http-proxy';
 import requestLanguage from 'express-request-language';
 import { ChunkExtractor } from '@loadable/server';
 import Youch from 'youch';
@@ -21,13 +22,13 @@ import {
   setLocale,
   setRuntimeVariable,
 } from './redux';
-import createApi from './api';
 import App from './components/App';
 import Html from './components/Html';
 import { createFetch } from './createFetch';
-import { AVAILABLE_LOCALES, getI18nInstance } from './i18n';
+import { AVAILABLE_LOCALES, DEFAULT_LOCALE, getI18nInstance } from './i18n';
 import * as navigator from './navigator';
-import router from './routes';
+import { router } from './pages';
+// import { createWebSocketServer } from './websocket';
 
 // =============================================================================
 // GLOBAL ERROR HANDLERS
@@ -51,32 +52,92 @@ if (!global.navigator) {
 }
 
 // Environment variable defaults
-const config = {
+const config = Object.freeze({
+  // Server configuration
   port: parseInt(process.env.RSK_PORT, 10) || 3000,
-  jwtSecret: process.env.RSK_JWT_SECRET,
-  jwtExpiresIn: process.env.RSK_JWT_EXPIRES_IN || '7d',
-  trustProxy: process.env.RSK_TRUST_PROXY || 'loopback',
-  apiProxyUrl: process.env.RSK_API_PROXY_URL,
-  apiBaseUrl: process.env.RSK_API_BASE_URL || '',
+  host: process.env.RSK_HOST || '0.0.0.0',
+  nodeEnv: process.env.NODE_ENV || 'development',
+  isProduction: process.env.NODE_ENV === 'production',
+  trustProxy: process.env.RSK_TRUST_PROXY === 'true' || 'loopback',
+
+  // Application metadata
   appName: process.env.RSK_APP_NAME || 'React Starter Kit',
   appDescription:
     process.env.RSK_APP_DESCRIPTION ||
     'Boilerplate for React.js web applications',
-};
+
+  // Base path for API routes
+  apiPrefix: process.env.RSK_API_PREFIX || '/api',
+
+  // JWT settings
+  jwtSecret: process.env.RSK_JWT_SECRET,
+  jwtExpiresIn: process.env.RSK_JWT_EXPIRES_IN || '7d',
+});
 
 // i18n instance
 const i18n = getI18nInstance();
 
 /**
- * Create fetch client for SSR
+ * Setup API proxy if configured
  *
- * @param {Object} req - Express request object
- * @returns {Function} Configured fetch client
+ * This function configures an HTTP proxy to forward API requests to a different server.
+ * It's particularly useful in development when the frontend and backend are served from different origins
+ * to avoid CORS issues, or in production when you want to route API requests through your Node.js server.
+ *
+ * The proxy is only enabled if the RSK_API_PROXY_URL environment variable is set.
+ * When enabled, all requests to /api/* will be forwarded to the specified URL.
+ *
+ * @param {Object} app - Express application instance
  */
-function createFetchClient(req) {
-  return createFetch(nodeFetch, {
-    baseUrl: `http://localhost:${config.port}`,
-    cookie: req.headers.cookie,
+function setupApiProxy(app) {
+  // Get the API proxy URL from environment variables
+  const apiProxyUrl = process.env.RSK_API_PROXY_URL;
+
+  // Exit early if no proxy URL is configured
+  if (!apiProxyUrl) {
+    console.info('ℹ️  API Proxy is not configured (RSK_API_PROXY_URL not set)');
+    return;
+  }
+
+  // Log proxy activation
+  console.info(
+    `🔀 API Proxy enabled: Forwarding ${config.apiPrefix}/* to ${apiProxyUrl}`,
+  );
+
+  // Setup the proxy middleware
+  app.use(
+    config.apiPrefix, // Base path to proxy (e.g., /api)
+    expressProxy(apiProxyUrl, {
+      // Transform the request path before proxying
+      // Removes the API prefix from the URL path
+      proxyReqPathResolver: req => {
+        const newPath = req.url.replace(new RegExp(`^${config.apiPrefix}`), '');
+        console.debug(
+          `Proxying: ${req.method} ${req.url} -> ${apiProxyUrl}${newPath}`,
+        );
+        return newPath;
+      },
+      // Handle proxy errors
+      proxyErrorHandler: (err, res, next) => {
+        console.error('Proxy Error:', err);
+        next(err);
+      },
+      // Intercept and modify response headers if needed
+      // eslint-disable-next-line no-unused-vars
+      userResHeaderInterceptor: (proxyRes, proxyResData, userReq, userRes) => {
+        // You can modify response headers here if needed
+        // For example, to handle CORS headers
+        // userRes.setHeader('Access-Control-Allow-Origin', '*');
+        return proxyResData;
+      },
+    }),
+  );
+
+  // Log proxy configuration when server starts
+  app.on('listening', () => {
+    console.info(
+      `🔀 API Proxy active: ${config.apiPrefix}/* -> ${apiProxyUrl}`,
+    );
   });
 }
 
@@ -87,7 +148,7 @@ function createFetchClient(req) {
  * @param {Function} fetch - Fetch client
  * @returns {Promise<Object>} Configured Redux store
  */
-async function createReduxStore(req, fetch) {
+async function createReduxStore(req, fetch, locale) {
   // Initialize store with user from JWT
   const store = configureStore(
     { user: req.user || null },
@@ -105,7 +166,7 @@ async function createReduxStore(req, fetch) {
   );
 
   // Set locale from request
-  await store.dispatch(setLocale(req.language || 'en-US'));
+  await store.dispatch(setLocale(locale));
 
   return store;
 }
@@ -184,7 +245,6 @@ async function renderPageToHtml({ context, component, metadata = {} }) {
       },
       // Application state for Redux hydration
       appState: {
-        apiUrl: config.apiBaseUrl,
         reduxState: context.store.getState(),
       },
       // Rendered React content
@@ -233,19 +293,23 @@ export function startServer(app, port = config.port, host = 'localhost') {
       if (error) {
         reject(error);
       } else {
-        console.info('🚀 Server started!');
-        console.info(`📡 Server: http://${host}:${port}/`);
+        console.info(`🚀 Server started at: http://${host}:${port}/`);
         console.info(
           `🌍 Environment: ${process.env.NODE_ENV || 'development'}`,
         );
 
-        // Show API configuration
-        if (config.apiProxyUrl) {
-          console.info(`🔀 API Proxy: ${config.apiProxyUrl}`);
-        }
-        if (config.apiBaseUrl) {
-          console.info(`🌐 Client API: ${config.apiBaseUrl}`);
-        }
+        // --- Start WebSocket server ---
+        // createWebSocketServer(
+        //   {
+        //     host,
+        //     port,
+        //     enableAuth: true,
+        //     jwtSecret: process.env.RSK_JWT_SECRET,
+        //     enableLogging: true,
+        //   },
+        //   httpServer,
+        // );
+        // console.info('🟢 WebSocket server attached to HTTP server');
 
         resolve(httpServer);
       }
@@ -285,28 +349,35 @@ async function main(app, staticPath) {
     }),
   );
 
-  // Bootstrap API - auto-discover and mount all modules
   // API mounts itself at /api, syncs database, and sets up all middleware
   // Database sync behavior is controlled by NODE_ENV
-  await createApi(app, {
-    jwtSecret: config.jwtSecret,
-    jwtExpiresIn: config.jwtExpiresIn,
-    apiProxyUrl: config.apiProxyUrl,
-  });
+  await require('./api').default(app, i18n);
+
+  // This will forward all requests to /api/* to the specified backend server
+  // Useful for development with separate API servers or production API routing
+  setupApiProxy(app);
 
   // Server-side rendering (catch-all)
   app.get('*', async (req, res, next) => {
     try {
-      // Initialize request context
-      const fetch = createFetchClient(req);
-      const store = await createReduxStore(req, fetch);
+      // Create fetch client for SSR
+      const fetch = createFetch(nodeFetch, {
+        baseUrl: `http://localhost:${config.port}`,
+        headers: { Cookie: req.headers.cookie },
+      });
+
+      // Retrieve default locale code
+      const locale = req.language || DEFAULT_LOCALE;
+
+      // Create redux store client for SSR
+      const store = await createReduxStore(req, fetch, locale);
 
       // Create context object (used by routes and rendering)
       const context = {
         fetch,
         store,
         i18n,
-        locale: req.language || 'en-US',
+        locale,
         pathname: req.path,
         query: req.query,
       };
@@ -345,20 +416,15 @@ async function main(app, staticPath) {
     }
   });
 
-  // Error handling middleware
+  // Error handling middleware for non-API requests
   app.use(async (err, req, res, next) => {
     // Skip if response already sent
     if (res.headersSent) {
       return next(err);
     }
 
+    // Get status from error or default to 500
     const status = err.status || 500;
-
-    // Handle JWT authentication errors - clear cookie and set proper status
-    if (err.name === 'UnauthorizedError') {
-      res.clearCookie('id_token');
-      err.status = 401;
-    }
 
     // Use Youch for error page rendering
     // In production, sanitize request to avoid exposing sensitive info
@@ -384,31 +450,14 @@ async function main(app, staticPath) {
   return app;
 }
 
-/**
- * Handle different execution modes:
- *
- * 1. Development Mode (with HMR):
- *    - module.hot is available (webpack HMR enabled)
- *    - Accept hot updates for the routes module
- *    - Server is started by `npm start`
- *    - This allows routes to be hot-reloaded without restarting the server
- *
- * 2. Production Mode (or standalone execution):
- *    - module.hot is undefined (no webpack HMR)
- *    - Initialize Express app and start server immediately
- *    - Used when running: node build/server.js
- *    - Creates a new Express instance and serves from 'public' directory
- */
 if (module.hot) {
-  // Development: Accept HMR updates for routes
-  // When routes change, webpack will hot-reload them without restarting the server
-  module.hot.accept('./routes');
+  // Development: Accept HMR updates for API
+  module.hot.accept('./api');
+  main.hot = module.hot;
 } else {
   // Production: Initialize and start server immediately
   // This is the entry point when running the built server bundle
-  main(express(), path.resolve('public')).then(app =>
-    startServer(app, config.port),
-  );
+  main(express(), path.resolve('public')).then(app => startServer(app));
 }
 
 export default main;

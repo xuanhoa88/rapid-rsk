@@ -86,7 +86,7 @@ export default function configureStore(initialState = {}, helpersConfig = {}) {
   const store = createStore(rootReducer, initialState, enhancer);
 
   // Enable hot module replacement for reducers (development only)
-  if (__DEV__ && module.hot) {
+  if (module.hot) {
     module.hot.accept('./rootReducer', () => {
       // eslint-disable-next-line global-require
       const nextRootReducer = require('./rootReducer').default;

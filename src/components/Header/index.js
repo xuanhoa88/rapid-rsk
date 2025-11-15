@@ -10,8 +10,6 @@ import LanguageSwitcher from './LanguageSwitcher';
 import Link from '../Link';
 import Navigation from '../Navigation';
 import s from './Header.css';
-import logoUrl from './logo-small.png';
-import logoUrl2x from './logo-small@2x.png';
 
 function Header({ showHero = false }) {
   const { t } = useTranslation();
@@ -22,11 +20,11 @@ function Header({ showHero = false }) {
         <div className={s.navContainer}>
           <Link className={s.brand} to='/'>
             <img
-              src={logoUrl}
-              srcSet={`${logoUrl2x} 2x`}
+              src='/rsk_38x38.png'
+              srcSet='rsk_72x72.png'
               width='38'
               height='38'
-              alt='React'
+              alt='RSK'
             />
             <span className={s.brandTxt}>{t('header.brand')}</span>
           </Link>

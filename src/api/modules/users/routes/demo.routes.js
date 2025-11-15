@@ -15,13 +15,18 @@
  * @param {Object} deps - Dependencies injected by parent router
  * @param {Function} deps.Router - Express Router constructor
  * @param {Object} middlewares - Authentication and authorization middlewares
+ * @param {Object} app - Express application instance
  * @returns {Router} Express router with demo routes
  */
-export default function demoRoutes(deps, middlewares) {
-  const { Router } = deps;
-  const { requireAuth, requireAnyPermission, requireGroup, requireAnyGroup } =
-    middlewares;
-  const router = Router();
+export default function demoRoutes(deps, middlewares, app) {
+  const { requireAnyPermission, requireGroup, requireAnyGroup } = middlewares;
+  const router = deps.Router();
+
+  // Create auth middleware instance
+  const auth = app.get('auth');
+  const authMiddleware = auth.middlewares.requireAuth({
+    jwtSecret: app.get('jwtSecret'),
+  });
 
   /**
    * @route   GET /admin/dashboard
@@ -31,7 +36,7 @@ export default function demoRoutes(deps, middlewares) {
    */
   router.get(
     '/admin/dashboard',
-    requireAuth,
+    authMiddleware,
     requireAnyPermission(['system:admin', 'users:manage', 'roles:read']),
     (req, res) => {
       res.json({
@@ -60,7 +65,7 @@ export default function demoRoutes(deps, middlewares) {
    */
   router.get(
     '/team/workspace',
-    requireAuth,
+    authMiddleware,
     requireAnyGroup(['staff', 'administrators']),
     (req, res) => {
       res.json({
@@ -88,7 +93,7 @@ export default function demoRoutes(deps, middlewares) {
    */
   router.get(
     '/developer/tools',
-    requireAuth,
+    authMiddleware,
     requireGroup('developers'),
     (req, res) => {
       res.json({
@@ -143,7 +148,7 @@ export default function demoRoutes(deps, middlewares) {
    * @access  Authenticated users only
    * @example Demonstrates basic authentication requirement
    */
-  router.get('/protected/basic', requireAuth, (req, res) => {
+  router.get('/protected/basic', authMiddleware, (req, res) => {
     res.json({
       success: true,
       message: 'You are authenticated!',

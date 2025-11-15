@@ -18,12 +18,16 @@ import { authController } from '../controllers';
  * @param {Object} deps - Dependencies injected by parent router
  * @param {Function} deps.Router - Express Router constructor
  * @param {Object} middlewares - Authentication middlewares
+ * @param {Object} app - Express application instance
  * @returns {Router} Express router with authentication routes
  */
-export default function authRoutes(deps, middlewares) {
-  const { Router } = deps;
-  const { requireAuth } = middlewares;
-  const router = Router();
+export default function authRoutes(deps, middlewares, app) {
+  const auth = app.get('auth');
+  const requireAuth = auth.middlewares.requireAuth({
+    jwtSecret: app.get('jwtSecret'),
+  });
+
+  const router = deps.Router();
 
   /**
    * @route   POST /register

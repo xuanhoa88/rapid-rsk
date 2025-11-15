@@ -199,7 +199,7 @@ tools/
 
 ```
 public/
-├── favicon.ico          # Site favicon
+├── rsk.ico              # Site favicon
 ├── robots.txt           # Search engine directives
 ├── humans.txt           # Credits
 ├── sitemap.xml          # Site map

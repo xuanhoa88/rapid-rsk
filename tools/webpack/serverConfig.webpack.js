@@ -124,7 +124,7 @@ export default merge(baseConfig, {
       raw: true,
       entryOnly: true, // Only add to entry file, not code-split chunks
     }),
-  ],
+  ].filter(Boolean),
 
   // Do not replace node globals with polyfills
   // https://webpack.js.org/configuration/node/

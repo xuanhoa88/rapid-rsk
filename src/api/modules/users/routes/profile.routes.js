@@ -18,16 +18,16 @@ import { profileController } from '../controllers';
  * @param {Object} deps - Dependencies injected by parent router
  * @param {Function} deps.Router - Express Router constructor
  * @param {Object} middlewares - Authentication middlewares
- * @param {Object} app - Express app instance for accessing middleware
+ * @param {Object} app - Express application instance
  * @returns {Router} Express router with profile routes
  */
 export default function profileRoutes(deps, middlewares, app) {
-  const { Router } = deps;
-  const { requireAuth } = middlewares;
-  const router = Router();
+  const auth = app.get('auth');
+  const requireAuth = auth.middlewares.requireAuth({
+    jwtSecret: app.get('jwtSecret'),
+  });
 
-  // Get file upload middleware
-  const fileUploader = app.get('fileUploader');
+  const router = deps.Router();
 
   /**
    * @route   GET /profile

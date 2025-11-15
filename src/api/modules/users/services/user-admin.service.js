@@ -5,12 +5,6 @@
  * LICENSE.txt file in the root directory of this source tree.
  */
 
-import { hashPassword } from '../utils/password';
-
-// ========================================================================
-// USER ADMINISTRATION SERVICES
-// ========================================================================
-
 /**
  * Get users with pagination and search
  *
@@ -445,11 +439,11 @@ export async function bulkUpdateUsers(userIds, updates, models) {
  *
  * @param {string} userId - User ID
  * @param {string} newPassword - New password
- * @param {Object} models - Database models
+ * @param {Object} {models, auth} - Database models and authentication engine
  * @returns {Promise<Object>} Updated user
  * @throws {Error} If user not found
  */
-export async function resetUserPassword(userId, newPassword, models) {
+export async function resetUserPassword(userId, newPassword, { models, auth }) {
   const { User } = models;
 
   const user = await User.findByPk(userId);
@@ -458,7 +452,7 @@ export async function resetUserPassword(userId, newPassword, models) {
   }
 
   // Hash new password
-  const hashedPassword = await hashPassword(newPassword);
+  const hashedPassword = await auth.password.hashPassword(newPassword);
 
   // Update password and reset security fields
   await user.update({

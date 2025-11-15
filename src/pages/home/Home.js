@@ -115,35 +115,12 @@ function Home({ loading, payload }) {
                       </div>
                       <div className={s.newsBody}>
                         <h3 className={s.newsTitle}>
-                          <a
-                            href={item.link}
-                            target={
-                              item.link.startsWith('/') ? '_self' : '_blank'
-                            }
-                            rel={
-                              item.link.startsWith('/')
-                                ? undefined
-                                : 'noopener noreferrer'
-                            }
-                          >
-                            {item.title}
-                          </a>
+                          <a href={item.link}>{item.title}</a>
                         </h3>
                         <p className={s.newsDesc}>
                           {item.contentSnippet || item.content}
                         </p>
-                        <a
-                          href={item.link}
-                          className={s.readMore}
-                          target={
-                            item.link.startsWith('/') ? '_self' : '_blank'
-                          }
-                          rel={
-                            item.link.startsWith('/')
-                              ? undefined
-                              : 'noopener noreferrer'
-                          }
-                        >
+                        <a href={item.link} className={s.readMore}>
                           Learn more →
                         </a>
                       </div>

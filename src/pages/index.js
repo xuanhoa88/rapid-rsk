@@ -125,6 +125,4 @@ if (__DEV__) {
  * The router handles both server-side and client-side routing,
  * enabling seamless SSR and client-side navigation.
  */
-const router = new IsomorphicRouter(routes);
-
-export default router;
+export const router = new IsomorphicRouter(routes);

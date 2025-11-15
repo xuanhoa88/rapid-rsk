@@ -528,7 +528,9 @@ export async function synchronizeFiles(syncOperations, options = {}) {
           operation: syncOperations[index],
           error: result.reason || result.value.error,
           message:
-            result.reason?.message || result.value?.message || 'Unknown error',
+            (result.reason && result.reason.message) ||
+            (result.value && result.value.message) ||
+            'Unknown error',
         });
       }
     });

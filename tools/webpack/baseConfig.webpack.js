@@ -252,16 +252,11 @@ export default {
               // - React Fast Refresh in development
               // - All necessary plugins for modern React development
               // Note: .babelrc.js uses api.caller() to detect webpack context automatically
-              babelrc: true,
-              configFile: true,
+              targets: 'defaults',
             },
           },
         ],
       },
-
-      // Rules for Style Sheets
-      // NOTE: CSS handling is configured in client/server configs using cssConfig.webpack.js
-      // This allows different handling for client (extract CSS) vs server (class names only)
 
       // Rules for images (using webpack 5 Asset Modules)
       {

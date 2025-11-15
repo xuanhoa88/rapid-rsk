@@ -6,11 +6,6 @@
  */
 
 /**
- * Environment detection
- */
-const isServer = typeof window === 'undefined';
-
-/**
  * Custom error class for fetch-related errors with enhanced context
  */
 export class FetchError extends Error {
@@ -72,10 +67,10 @@ export class FetchError extends Error {
 export function createFetch(fetch, config = {}) {
   const {
     baseUrl = '',
-    cookie = null,
     onRequest = null,
     onResponse = null,
     onError = null,
+    headers = {},
   } = config;
 
   /**
@@ -88,7 +83,7 @@ export function createFetch(fetch, config = {}) {
     headers: {
       Accept: 'application/json',
       'Content-Type': 'application/json',
-      ...(isServer && cookie ? { Cookie: cookie } : {}),
+      ...headers,
     },
   };
 

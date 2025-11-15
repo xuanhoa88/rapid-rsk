@@ -5,14 +5,7 @@
  * LICENSE.txt file in the root directory of this source tree.
  */
 
-import { userAdminService } from '../services';
-import {
-  sendSuccess,
-  sendError,
-  sendValidationError,
-  sendNotFound,
-  sendServerError,
-} from '../../../engines/http';
+import { userAdminService, profileService } from '../services';
 
 // ========================================================================
 // USER ADMINISTRATION CONTROLLERS (Admin Only)
@@ -27,6 +20,7 @@ import {
  * @param {Object} res - Express response object
  */
 export async function getUserList(req, res) {
+  const http = req.app.get('http');
   try {
     const {
       page = 1,
@@ -45,9 +39,9 @@ export async function getUserList(req, res) {
       models,
     );
 
-    return sendSuccess(res, result);
+    return http.sendSuccess(res, result);
   } catch (error) {
-    return sendServerError(res, 'Failed to get user list');
+    return http.sendServerError(res, 'Failed to get user list');
   }
 }
 
@@ -60,6 +54,7 @@ export async function getUserList(req, res) {
  * @param {Object} res - Express response object
  */
 export async function getUserById(req, res) {
+  const http = req.app.get('http');
   try {
     const { id } = req.params;
 
@@ -67,13 +62,13 @@ export async function getUserById(req, res) {
     const models = req.app.get('models');
 
     // Get user by ID
-    const user = await userAdminService.getUserWithProfile(id, models);
+    const user = await profileService.getUserWithProfile(id, models);
 
     if (!user) {
-      return sendNotFound(res, 'User not found');
+      return http.sendNotFound(res, 'User not found');
     }
 
-    return sendSuccess(res, {
+    return http.sendSuccess(res, {
       user: {
         id: user.id,
         email: user.email,
@@ -94,7 +89,7 @@ export async function getUserById(req, res) {
       },
     });
   } catch (error) {
-    return sendServerError(res, 'Failed to get user');
+    return http.sendServerError(res, 'Failed to get user');
   }
 }
 
@@ -107,6 +102,7 @@ export async function getUserById(req, res) {
  * @param {Object} res - Express response object
  */
 export async function updateUserById(req, res) {
+  const http = req.app.get('http');
   try {
     const { id } = req.params;
     const {
@@ -123,7 +119,7 @@ export async function updateUserById(req, res) {
 
     // Prevent admin from updating themselves
     if (req.user.id === id) {
-      return sendError(res, 'Cannot update your own account', 400);
+      return http.sendError(res, 'Cannot update your own account', 400);
     }
 
     // Get models from app context
@@ -146,7 +142,7 @@ export async function updateUserById(req, res) {
       models,
     );
 
-    return sendSuccess(res, {
+    return http.sendSuccess(res, {
       user: {
         id: user.id,
         email: user.email,
@@ -166,16 +162,16 @@ export async function updateUserById(req, res) {
     });
   } catch (error) {
     if (error.message === 'User not found') {
-      return sendNotFound(res, error.message);
+      return http.sendNotFound(res, error.message);
     }
 
     if (error.message === 'Email already exists') {
-      return sendValidationError(res, {
+      return http.sendValidationError(res, {
         email: 'Email is already in use by another user',
       });
     }
 
-    return sendServerError(res, 'Failed to update user');
+    return http.sendServerError(res, 'Failed to update user');
   }
 }
 
@@ -188,12 +184,13 @@ export async function updateUserById(req, res) {
  * @param {Object} res - Express response object
  */
 export async function deleteUserById(req, res) {
+  const http = req.app.get('http');
   try {
     const { id } = req.params;
 
     // Prevent admin from deleting themselves
     if (req.user.id === id) {
-      return sendValidationError(res, {
+      return http.sendValidationError(res, {
         id: 'Cannot delete your own account',
       });
     }
@@ -205,17 +202,17 @@ export async function deleteUserById(req, res) {
     // Get user
     const user = await User.findByPk(id);
     if (!user) {
-      return sendNotFound(res, 'User not found');
+      return http.sendNotFound(res, 'User not found');
     }
 
     // Delete user (cascade will handle profile)
     await user.destroy();
 
-    return sendSuccess(res, {
+    return http.sendSuccess(res, {
       message: `User ${user.email} deleted successfully`,
     });
   } catch (error) {
-    return sendServerError(res, 'Failed to delete user');
+    return http.sendServerError(res, 'Failed to delete user');
   }
 }
 
@@ -228,6 +225,7 @@ export async function deleteUserById(req, res) {
  * @param {Object} res - Express response object
  */
 export async function updateUserRole(req, res) {
+  const http = req.app.get('http');
   try {
     const { id } = req.params;
     const { role } = req.body;
@@ -235,14 +233,14 @@ export async function updateUserRole(req, res) {
     // Validate role
     const validRoles = ['user', 'admin', 'moderator'];
     if (!role || !validRoles.includes(role)) {
-      return sendValidationError(res, {
+      return http.sendValidationError(res, {
         role: `Role must be one of: ${validRoles.join(', ')}`,
       });
     }
 
     // Prevent admin from changing their own role
     if (req.user.id === id) {
-      return sendError(res, 'Cannot change your own role', 400);
+      return http.sendError(res, 'Cannot change your own role', 400);
     }
 
     // Get models from app context
@@ -251,7 +249,7 @@ export async function updateUserRole(req, res) {
     // Update user role
     const user = await userAdminService.updateUserRole(id, role, models);
 
-    return sendSuccess(res, {
+    return http.sendSuccess(res, {
       message: `User role updated to ${role}`,
       user: {
         id: user.id,
@@ -261,10 +259,10 @@ export async function updateUserRole(req, res) {
     });
   } catch (error) {
     if (error.message === 'User not found') {
-      return sendNotFound(res, error.message);
+      return http.sendNotFound(res, error.message);
     }
 
-    return sendServerError(res, 'Failed to update user role');
+    return http.sendServerError(res, 'Failed to update user role');
   }
 }
 
@@ -277,20 +275,21 @@ export async function updateUserRole(req, res) {
  * @param {Object} res - Express response object
  */
 export async function updateUserStatus(req, res) {
+  const http = req.app.get('http');
   try {
     const { id } = req.params;
     const { isActive } = req.body;
 
     // Validate status
     if (typeof isActive !== 'boolean') {
-      return sendValidationError(res, {
+      return http.sendValidationError(res, {
         isActive: 'Status must be true or false',
       });
     }
 
     // Prevent admin from deactivating themselves
     if (req.user.id === id && !isActive) {
-      return sendError(res, 'Cannot deactivate your own account', 400);
+      return http.sendError(res, 'Cannot deactivate your own account', 400);
     }
 
     // Get models from app context
@@ -299,7 +298,7 @@ export async function updateUserStatus(req, res) {
     // Update user status
     const user = await userAdminService.updateUserStatus(id, isActive, models);
 
-    return sendSuccess(res, {
+    return http.sendSuccess(res, {
       message: `User ${isActive ? 'activated' : 'deactivated'} successfully`,
       user: {
         id: user.id,
@@ -309,10 +308,10 @@ export async function updateUserStatus(req, res) {
     });
   } catch (error) {
     if (error.message === 'User not found') {
-      return sendNotFound(res, error.message);
+      return http.sendNotFound(res, error.message);
     }
 
-    return sendServerError(res, 'Failed to update user status');
+    return http.sendServerError(res, 'Failed to update user status');
   }
 }
 
@@ -325,20 +324,21 @@ export async function updateUserStatus(req, res) {
  * @param {Object} res - Express response object
  */
 export async function updateUserLockStatus(req, res) {
+  const http = req.app.get('http');
   try {
     const { id } = req.params;
     const { isLocked, reason } = req.body;
 
     // Validate input
     if (typeof isLocked !== 'boolean') {
-      return sendValidationError(res, {
+      return http.sendValidationError(res, {
         isLocked: 'Lock status must be true or false',
       });
     }
 
     // Prevent admin from locking themselves
     if (req.user.id === id && isLocked) {
-      return sendError(res, 'Cannot lock your own account', 400);
+      return http.sendError(res, 'Cannot lock your own account', 400);
     }
 
     // Get models from app context
@@ -352,7 +352,7 @@ export async function updateUserLockStatus(req, res) {
       models,
     );
 
-    return sendSuccess(res, {
+    return http.sendSuccess(res, {
       message: `User account ${isLocked ? 'locked' : 'unlocked'} successfully`,
       user: {
         id: user.id,
@@ -363,10 +363,10 @@ export async function updateUserLockStatus(req, res) {
     });
   } catch (error) {
     if (error.message === 'User not found') {
-      return sendNotFound(res, error.message);
+      return http.sendNotFound(res, error.message);
     }
 
-    return sendServerError(res, 'Failed to update user lock status');
+    return http.sendServerError(res, 'Failed to update user lock status');
   }
 }
 
@@ -379,6 +379,7 @@ export async function updateUserLockStatus(req, res) {
  * @param {Object} res - Express response object
  */
 export async function getUserStats(req, res) {
+  const http = req.app.get('http');
   try {
     // Get models from app context
     const models = req.app.get('models');
@@ -386,9 +387,9 @@ export async function getUserStats(req, res) {
     // Get user statistics
     const stats = await userAdminService.getUserStats(models);
 
-    return sendSuccess(res, { stats });
+    return http.sendSuccess(res, { stats });
   } catch (error) {
-    return sendServerError(res, 'Failed to get user statistics');
+    return http.sendServerError(res, 'Failed to get user statistics');
   }
 }
 
@@ -401,25 +402,26 @@ export async function getUserStats(req, res) {
  * @param {Object} res - Express response object
  */
 export async function bulkUpdateUsers(req, res) {
+  const http = req.app.get('http');
   try {
     const { userIds, updates } = req.body;
 
     // Validate input
     if (!Array.isArray(userIds) || userIds.length === 0) {
-      return sendValidationError(res, {
+      return http.sendValidationError(res, {
         userIds: 'User IDs must be a non-empty array',
       });
     }
 
     if (!updates || typeof updates !== 'object') {
-      return sendValidationError(res, {
+      return http.sendValidationError(res, {
         updates: 'Updates must be an object',
       });
     }
 
     // Prevent admin from updating themselves
     if (userIds.includes(req.user.id)) {
-      return sendError(res, 'Cannot bulk update your own account', 400);
+      return http.sendError(res, 'Cannot bulk update your own account', 400);
     }
 
     // Get models from app context
@@ -432,11 +434,11 @@ export async function bulkUpdateUsers(req, res) {
       models,
     );
 
-    return sendSuccess(res, {
+    return http.sendSuccess(res, {
       message: `${result.updatedCount} users updated successfully`,
       ...result,
     });
   } catch (error) {
-    return sendServerError(res, 'Failed to bulk update users');
+    return http.sendServerError(res, 'Failed to bulk update users');
   }
 }

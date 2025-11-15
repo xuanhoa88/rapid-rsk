@@ -6,60 +6,23 @@
  */
 
 import { Router } from 'express';
-import { expressjwt as expressJwt } from 'express-jwt';
-import expressProxy from 'express-http-proxy';
 import rateLimit from 'express-rate-limit';
 import cors from 'cors';
-import helmet from 'helmet';
 import compression from 'compression';
 import morgan from 'morgan';
 import { sequelize } from './engines/database';
-import * as fs from './engines/filesystems';
-import * as http from './engines/http';
-
-/**
- * API route prefix
- *
- * All API routes will be mounted under this prefix.
- * Can be configured via RSK_API_PREFIX environment variable.
- *
- * @example
- * // Default
- * RSK_API_PREFIX=/api
- *
- * @example
- * // Versioned API
- * RSK_API_PREFIX=/v1/api
- *
- * @example
- * // Custom prefix
- * RSK_API_PREFIX=/rest
- */
-const API_PREFIX = process.env.RSK_API_PREFIX || '/api';
+import { fs, http, auth } from './engines';
 
 /**
  * Synchronize database models
  *
  * Creates tables if they don't exist. Optionally can alter or force recreate tables.
- * Warning: Use force/alter options with caution in production!
  *
  * @param {Object} [options={}] - Sequelize sync options
  * @param {boolean} [options.force] - Drop tables before recreating (dangerous!)
  * @param {boolean} [options.alter] - Alter tables to fit models (use migrations instead)
  * @param {boolean} [options.logging] - Enable SQL logging (default: false)
  * @returns {Promise<void>}
- *
- * @example
- * // Simple sync (creates tables if missing)
- * await syncDatabase();
- *
- * @example
- * // Sync with logging
- * await syncDatabase({ logging: console.log });
- *
- * @example
- * // Development: alter tables to match models
- * await syncDatabase({ alter: true, logging: console.log });
  */
 async function syncDatabase(options = {}) {
   try {
@@ -69,6 +32,7 @@ async function syncDatabase(options = {}) {
     throw error;
   }
 }
+
 /**
  * Load and validate a factory function from a webpack module
  *
@@ -130,15 +94,6 @@ function processFiles(context, typeName, processor) {
  * Auto-discovers models and modules from ./modules directory.
  * First discovers and initializes models, then mounts module routers.
  * Each module receives dependencies via dependency injection.
- *
- * Discovery Process:
- * 1. Discovers all models from ./moduleName/models/index.js
- * 2. Calls model factory functions with (dependencies, app)
- * 3. Collects all models into single object
- * 4. Discovers all modules from ./moduleName/index.js
- * 5. Calls module factory functions with (dependencies + models, app)
- * 6. Mounts all module routers
- * 7. Returns { models, apiRoutes }
  *
  * @param {Object} app - Express app instance (for accessing app-level settings)
  * @param {Object} dependencies - Dependencies to inject into modules
@@ -284,89 +239,94 @@ async function discoverModules(app, dependencies) {
 }
 
 /**
- * Create API configuration object with defaults and validation
+ * Creates and validates API configuration with sensible defaults
  *
- * @param {Object} config - Raw configuration
- * @returns {Object} Validated configuration
+ * This function merges environment variables with provided configuration,
+ * applies validation, and ensures all required settings are present.
+ *
+ * @param {Object} [config={}] - User-provided configuration
+ * @param {string} [config.apiPrefix='/api'] - Base path for API routes
+ * @param {Object} [config.rateLimit] - Rate limiting configuration
+ * @param {Object} [config.cors] - CORS configuration
+ * @returns {Object} Validated configuration object
  */
-function createApiConfig(config = {}) {
-  // Validate required JWT secret
-  if (!config.jwtSecret) {
-    throw new Error(
-      'RSK_JWT_SECRET environment variable is required. Generate one with: openssl rand -base64 32',
-    );
-  }
+function createConfig(config = {}) {
+  const isProduction = process.env.NODE_ENV === 'production';
 
-  return {
-    jwtSecret: config.jwtSecret,
-    jwtExpiresIn: config.jwtExpiresIn || '7d',
-    apiProxyUrl: config.apiProxyUrl,
+  // Base configuration with defaults
+  const defaultConfig = {
+    // API settings
+    apiPrefix: config.apiPrefix || '/api',
     environment: process.env.NODE_ENV || 'development',
     version: process.env.RSK_API_VERSION || '1.0.0',
+
+    // JWT settings
+    jwtSecret: config.jwtSecret,
+    jwtExpiresIn: config.jwtExpiresIn || '7d',
+
+    // Rate limiting
     rateLimit: {
       windowMs: 15 * 60 * 1000, // 15 minutes
-      max: config.environment === 'production' ? 50 : 100,
-      authMax: config.environment === 'production' ? 5 : 10,
+      max: isProduction ? 50 : 100,
+      authMax: isProduction ? 5 : 10,
+      // Trust X-Forwarded-* headers when behind a proxy
+      trustProxy: process.env.TRUST_PROXY === 'true' || false,
+      ...(config.rateLimit || {}), // Allow overrides
     },
+
+    // CORS configuration
     cors: {
       // Origin configuration
-      origin:
-        config.environment === 'production'
-          ? (process.env.RSK_CORS_ORIGIN &&
-              process.env.RSK_CORS_ORIGIN.split(',')) ||
-            false
-          : process.env.RSK_CORS_ORIGIN === 'false'
-            ? false
-            : true,
+      origin: (() => {
+        if (process.env.RSK_CORS_ORIGIN === 'false') return false;
+        if (process.env.RSK_CORS_ORIGIN) {
+          return process.env.RSK_CORS_ORIGIN.split(',').map(s => s.trim());
+        }
+        return !isProduction; // true in development, false in production
+      })(),
 
-      // Credentials support
+      // Other CORS settings
       credentials: process.env.RSK_CORS_CREDENTIALS !== 'false',
-
-      // HTTP methods
-      methods: (process.env.RSK_CORS_METHODS &&
-        process.env.RSK_CORS_METHODS.split(',')) || [
-        'GET',
-        'POST',
-        'PUT',
-        'DELETE',
-        'PATCH',
-        'OPTIONS',
-        'HEAD',
-      ],
-
-      // Allowed headers
-      allowedHeaders: (process.env.RSK_CORS_ALLOWED_HEADERS &&
-        process.env.RSK_CORS_ALLOWED_HEADERS.split(',')) || [
+      methods: (
+        process.env.RSK_CORS_METHODS?.split(',') || [
+          'GET',
+          'POST',
+          'PUT',
+          'PATCH',
+          'DELETE',
+          'OPTIONS',
+        ]
+      ).map(method => method.trim().toUpperCase()),
+      allowedHeaders: process.env.RSK_CORS_ALLOWED_HEADERS?.split(',') || [
         'Content-Type',
         'Authorization',
         'X-Requested-With',
-        'Accept',
-        'Origin',
-        'Cache-Control',
-        'X-File-Name',
       ],
-
-      // Exposed headers
-      exposedHeaders: (process.env.RSK_CORS_EXPOSED_HEADERS &&
-        process.env.RSK_CORS_EXPOSED_HEADERS.split(',')) || [
-        'RateLimit-Limit',
-        'RateLimit-Remaining',
-        'RateLimit-Reset',
-        'X-Total-Count',
-        'X-Request-ID',
-      ],
-
-      // Preflight cache duration
-      maxAge: parseInt(process.env.RSK_CORS_MAX_AGE, 10) || 86400, // 24 hours
-
-      // Preflight continue
-      preflightContinue: process.env.RSK_CORS_PREFLIGHT_CONTINUE === 'true',
-
-      // Options success status
-      optionsSuccessStatus:
-        parseInt(process.env.RSK_CORS_OPTIONS_STATUS, 10) || 204,
+      exposedHeaders: process.env.RSK_CORS_EXPOSED_HEADERS?.split(',') || [],
+      maxAge: parseInt(process.env.RSK_CORS_MAX_AGE, 10) || 600, // 10 minutes
+      ...(config.cors || {}), // Allow overrides
     },
   };
+
+  // Validate required configuration
+  if (!defaultConfig.jwtSecret) {
+    console.warn(
+      '⚠️  JWT secret not set. Set RSK_JWT_SECRET environment variable.',
+    );
+    if (isProduction) {
+      throw new Error('JWT secret is required in production');
+    }
+  }
+
+  // Log configuration in development
+  if (!isProduction) {
+    console.debug('📋 API Configuration:', {
+      ...defaultConfig,
+      jwtSecret: defaultConfig.jwtSecret ? '***' : 'Not set',
+    });
+  }
+
+  return Object.freeze(defaultConfig);
 }
 
 /**
@@ -375,7 +335,7 @@ function createApiConfig(config = {}) {
  * @param {Object} config - API configuration
  * @returns {Function} Rate limiting middleware
  */
-function createApiRateLimiter(config) {
+function createRateLimiter(config = {}) {
   return rateLimit({
     windowMs: config.rateLimit.windowMs,
     max: config.rateLimit.max,
@@ -395,7 +355,7 @@ function createApiRateLimiter(config) {
  * @param {Object} config - API configuration
  * @returns {Function} Health check handler
  */
-function createHealthCheckHandler(config) {
+function createHealthCheckHandler(config = {}) {
   return async (req, res) => {
     try {
       // Check database connectivity
@@ -440,27 +400,22 @@ function createHealthCheckHandler(config) {
  * @param {Object} app - Express app
  * @param {Object} config - API configuration
  */
-function setupAppDependencies(app, config) {
-  // Freeze primitive values (strings are already immutable)
+function setupAppDependencies(app, config = {}) {
+  // JWT configuration (used by auth middleware)
   app.set('jwtSecret', config.jwtSecret);
   app.set('jwtExpiresIn', config.jwtExpiresIn);
 
   // Freeze complex objects to prevent modification
-  app.set('sequelize', Object.freeze(sequelize));
+  app.set('sequelize', sequelize);
+
   // Note: fs module is already read-only, but we freeze it for consistency
   app.set('fs', fs);
+
   // HTTP utilities for request/response handling
-  app.set('http', Object.freeze(http));
+  app.set('http', http);
 
-  // Create and freeze JWT middleware configuration
-  const jwtMiddleware = expressJwt({
-    secret: config.jwtSecret,
-    algorithms: ['HS256'],
-    credentialsRequired: false,
-    getToken: req => req.cookies.id_token,
-  });
-
-  app.set('jwtMiddleware', Object.freeze(jwtMiddleware));
+  // Authentication utilities for JWT, cookies, sessions, etc.
+  app.set('auth', auth);
 }
 
 /**
@@ -476,7 +431,8 @@ function createAppGuard(app) {
     'jwtExpiresIn',
     'sequelize',
     'fs',
-    'jwtMiddleware',
+    'http',
+    'auth',
     'models', // Will be added later
   ]);
 
@@ -526,7 +482,7 @@ function createAppGuard(app) {
  * @param {Object} config - API configuration
  * @returns {Function} CORS middleware
  */
-function createApiCorsMiddleware(config) {
+function createCorsMiddleware(config = {}) {
   return cors({
     // Origin configuration - supports dynamic origin function
     origin:
@@ -579,26 +535,6 @@ function createApiCorsMiddleware(config) {
 }
 
 /**
- * Create security middleware (Helmet)
- *
- * @param {Object} config - API configuration
- * @returns {Function} Security middleware
- */
-function createSecurityMiddleware() {
-  return helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        scriptSrc: ["'self'"],
-        imgSrc: ["'self'", 'data:', 'https:'],
-      },
-    },
-    crossOriginEmbedderPolicy: false, // Disable for API compatibility
-  });
-}
-
-/**
  * Create compression middleware
  *
  * @param {Object} config - API configuration
@@ -645,25 +581,6 @@ function createLoggingMiddleware(config) {
 }
 
 /**
- * Setup API proxy if configured
- *
- * @param {Object} app - Express app
- * @param {Object} config - API configuration
- */
-function setupApiProxy(app, config) {
-  if (!config.apiProxyUrl) return;
-
-  console.info(`🔀 API Proxy enabled: ${config.apiProxyUrl}`);
-  app.use(
-    API_PREFIX,
-    expressProxy(config.apiProxyUrl, {
-      proxyReqPathResolver: req =>
-        req.url.replace(new RegExp(`^${API_PREFIX}`), ''),
-    }),
-  );
-}
-
-/**
  * Bootstrap the API
  *
  * Simplified and robust API initialization with proper error handling,
@@ -671,48 +588,28 @@ function setupApiProxy(app, config) {
  *
  * @param {Object} app - Express app instance
  * @param {Object} options - Configuration object
- * @param {string} options.jwtSecret - JWT secret key (required)
- * @param {string} [options.jwtExpiresIn='7d'] - JWT expiration time
- * @param {string} [options.apiProxyUrl] - External API URL to proxy
- * @returns {Promise<void>} Resolves when API is fully bootstrapped
  * @throws {Error} If configuration is invalid or initialization fails
- *
- * @example
- * await main(app, {
- *   jwtSecret: process.env.RSK_JWT_SECRET,
- *   jwtExpiresIn: '24h',
- *   apiProxyUrl: 'https://api.github.com',
- * });
  */
-export default async function main(app, options = {}) {
+export default async function main(app, i18n, options = {}) {
   try {
-    // 1. Create and validate configuration
-    const config = createApiConfig(options);
+    // Create and validate configuration
+    const config = createConfig(options);
 
-    // 2. Setup app dependencies for dependency injection
+    // Setup app dependencies for dependency injection
     setupAppDependencies(app, config);
 
-    // 3. Create middleware
-    const corsMiddleware = createApiCorsMiddleware(config);
-    const securityMiddleware = createSecurityMiddleware(config);
-    const compressionMiddleware = createCompressionMiddleware(config);
-    const loggingMiddleware = createLoggingMiddleware(config);
-    const rateLimiter = createApiRateLimiter(config);
-    const healthCheckHandler = createHealthCheckHandler(config);
+    // Create rate limiter middleware
+    const rateLimiter = createRateLimiter(config);
 
-    // Note: JWT middleware is created and stored in app settings for modules to use
-    // Authentication is handled at route level using requireAuth middleware
+    // Apply global middleware (order matters!)
+    app.use(createLoggingMiddleware(config)); // Log all requests first
+    app.use(createCorsMiddleware(config)); // CORS handling
+    app.use(createCompressionMiddleware(config)); // Response compression
 
-    // 4. Apply global middleware (order matters!)
-    app.use(loggingMiddleware); // Log all requests first
-    app.use(securityMiddleware); // Security headers
-    app.use(corsMiddleware); // CORS handling
-    app.use(compressionMiddleware); // Response compression
+    // Setup health check endpoint (before API routes)
+    app.get('/health', rateLimiter, createHealthCheckHandler(config));
 
-    // 5. Setup health check endpoint (before API routes)
-    app.get('/health', rateLimiter, healthCheckHandler);
-
-    // 6. Discover and initialize modules
+    // Discover and initialize modules
     const { apiModels, apiRoutes } = await discoverModules(app, {
       sequelize,
       jwtConfig: {
@@ -721,20 +618,16 @@ export default async function main(app, options = {}) {
       },
     });
 
-    // 7. Store models in app settings (freeze to prevent modification)
-    app.set('models', Object.freeze(apiModels));
+    // Store models in app settings
+    app.set('models', apiModels);
 
-    // 8. Mount API routes with rate limiting only
-    // Authentication is handled at route level using requireAuth middleware
-    app.use(API_PREFIX, rateLimiter, apiRoutes);
+    // Mount API routes with rate limiting only
+    app.use(config.apiPrefix, rateLimiter, apiRoutes);
 
-    // 9. Setup filesystem routes using controller
-    app.use(`${API_PREFIX}/files`, rateLimiter, fs.createRouter(Router));
+    // Setup enhanced error handler for API routes
+    app.use(config.apiPrefix, http.errorHandler);
 
-    // 10. Setup optional API proxy
-    setupApiProxy(app, config);
-
-    // 11. Synchronize database
+    // Synchronize database
     await syncDatabase();
 
     console.info('✅ API bootstrap completed successfully');

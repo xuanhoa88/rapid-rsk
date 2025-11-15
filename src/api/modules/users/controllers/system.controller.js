@@ -6,13 +6,6 @@
  */
 
 import { userRbacService } from '../services';
-import {
-  sendSuccess,
-  sendError,
-  sendValidationError,
-  sendNotFound,
-  sendServerError,
-} from '../../../engines/http';
 
 // ========================================================================
 // SYSTEM MANAGEMENT CONTROLLERS
@@ -27,6 +20,7 @@ import {
  * @param {Object} res - Express response object
  */
 export async function initializeRBAC(req, res) {
+  const http = req.app.get('http');
   try {
     // Get models from app context
     const models = req.app.get('models');
@@ -34,12 +28,12 @@ export async function initializeRBAC(req, res) {
     // Initialize RBAC
     const result = await userRbacService.initializeDefaultRBAC(models);
 
-    return sendSuccess(res, {
+    return http.sendSuccess(res, {
       message: 'RBAC system initialized successfully',
       ...result,
     });
   } catch (error) {
-    return sendServerError(res, 'Failed to initialize RBAC system');
+    return http.sendServerError(res, 'Failed to initialize RBAC system');
   }
 }
 
@@ -52,6 +46,7 @@ export async function initializeRBAC(req, res) {
  * @param {Object} res - Express response object
  */
 export async function getRBACStatus(req, res) {
+  const http = req.app.get('http');
   try {
     const models = req.app.get('models');
     const { Role, Permission, Group, User } = models;
@@ -87,7 +82,7 @@ export async function getRBACStatus(req, res) {
       attributes: ['id', 'name', 'resource', 'action'],
     });
 
-    return sendSuccess(res, {
+    return http.sendSuccess(res, {
       status: 'operational',
       counts: {
         roles: roleCount,
@@ -100,7 +95,7 @@ export async function getRBACStatus(req, res) {
       initialized: roleCount > 0 && permissionCount > 0,
     });
   } catch (error) {
-    return sendServerError(res, 'Failed to get RBAC status');
+    return http.sendServerError(res, 'Failed to get RBAC status');
   }
 }
 
@@ -113,12 +108,13 @@ export async function getRBACStatus(req, res) {
  * @param {Object} res - Express response object
  */
 export async function resetRBAC(req, res) {
+  const http = req.app.get('http');
   try {
     const { confirm } = req.body;
 
     // Require explicit confirmation
     if (confirm !== 'RESET_RBAC_SYSTEM') {
-      return sendValidationError(res, {
+      return http.sendValidationError(res, {
         confirm: 'Must provide exact confirmation string: RESET_RBAC_SYSTEM',
       });
     }
@@ -145,12 +141,12 @@ export async function resetRBAC(req, res) {
     await Permission.destroy({ where: {} });
     await Group.destroy({ where: {} });
 
-    return sendSuccess(res, {
+    return http.sendSuccess(res, {
       message: 'RBAC system reset successfully',
       warning: 'All roles, permissions, and groups have been deleted',
     });
   } catch (error) {
-    return sendServerError(res, 'Failed to reset RBAC system');
+    return http.sendServerError(res, 'Failed to reset RBAC system');
   }
 }
 
@@ -163,6 +159,7 @@ export async function resetRBAC(req, res) {
  * @param {Object} res - Express response object
  */
 export async function exportRBACConfig(req, res) {
+  const http = req.app.get('http');
   try {
     const models = req.app.get('models');
     const { Role, Permission, Group } = models;
@@ -213,9 +210,9 @@ export async function exportRBACConfig(req, res) {
       })),
     };
 
-    return sendSuccess(res, { config });
+    return http.sendSuccess(res, { config });
   } catch (error) {
-    return sendServerError(res, 'Failed to export RBAC configuration');
+    return http.sendServerError(res, 'Failed to export RBAC configuration');
   }
 }
 
@@ -228,11 +225,12 @@ export async function exportRBACConfig(req, res) {
  * @param {Object} res - Express response object
  */
 export async function importRBACConfig(req, res) {
+  const http = req.app.get('http');
   try {
     const { config, overwrite = false } = req.body;
 
     if (!config || !config.permissions || !config.roles) {
-      return sendValidationError(res, {
+      return http.sendValidationError(res, {
         config: 'Invalid configuration format',
       });
     }
@@ -350,11 +348,11 @@ export async function importRBACConfig(req, res) {
       }
     }
 
-    return sendSuccess(res, {
+    return http.sendSuccess(res, {
       message: 'RBAC configuration imported successfully',
       results,
     });
   } catch (error) {
-    return sendServerError(res, 'Failed to import RBAC configuration');
+    return http.sendServerError(res, 'Failed to import RBAC configuration');
   }
 }

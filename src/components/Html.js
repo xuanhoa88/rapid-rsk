@@ -76,12 +76,13 @@ LoadableStateScripts.propTypes = {
  * @param {string} props.description - Page description
  * @param {string} [props.image] - Open Graph image URL
  * @param {string} [props.url] - Canonical URL
+ * @param {string} [props.locale] - Default locale
  * @param {string} [props.type='website'] - Open Graph type
  * @param {Array} [props.styles=[]] - Inline CSS styles from @loadable/component
  * @param {Array} [props.styleLinks=[]] - CSS file URLs
  * @param {Array} [props.scripts=[]] - JavaScript file URLs
  * @param {Object} [props.loadableState] - Loadable component state for SSR
- * @param {Object} props.appState - Application state and configuration (apiUrl, reduxState)
+ * @param {Object} props.appState - Application state and configuration (reduxState)
  * @param {string} props.children - Rendered React app HTML
  */
 function Html({
@@ -90,6 +91,7 @@ function Html({
   image = null,
   url = null,
   type = 'website',
+  locale = null,
   styles = [],
   styleLinks = [],
   scripts = [],
@@ -98,12 +100,7 @@ function Html({
   children,
 }) {
   return (
-    <html
-      className='no-js'
-      lang={
-        (appState.reduxState.intl && appState.reduxState.intl.locale) || 'en-US'
-      }
-    >
+    <html className='no-js' lang={locale || 'en-US'}>
       <head>
         {/* Basic meta tags */}
         <meta charSet='utf-8' />
@@ -113,6 +110,7 @@ function Html({
         {/* Page metadata */}
         <title>{title}</title>
         <meta name='description' content={description} />
+        <link rel='shortcut icon' href={`/rsk.ico?v=${Date.now()}`} />
 
         {/* Open Graph meta tags for social media */}
         <OpenGraphMeta
@@ -137,8 +135,11 @@ function Html({
         ))}
 
         {/* PWA manifest and icons */}
-        <link rel='manifest' href='/site.webmanifest' />
-        <link rel='apple-touch-icon' href='/icon.png' />
+        <link rel='manifest' href={`/site.webmanifest?v=${Date.now()}`} />
+        <link
+          rel='apple-touch-icon'
+          href={`/rsk_192x192.png?v=${Date.now()}`}
+        />
 
         {/* Critical inline CSS from @loadable/component */}
         {styles.map(({ cssText }, index) => (
@@ -183,6 +184,7 @@ Html.propTypes = {
       cssText: PropTypes.string.isRequired,
     }),
   ),
+  locale: PropTypes.string,
   styleLinks: PropTypes.arrayOf(PropTypes.string),
   scripts: PropTypes.arrayOf(PropTypes.string),
   loadableState: PropTypes.shape({
@@ -190,8 +192,7 @@ Html.propTypes = {
     namedChunks: PropTypes.string,
   }),
   appState: PropTypes.shape({
-    apiUrl: PropTypes.string.isRequired,
-    reduxState: PropTypes.object.isRequired, // Redux store state (includes runtime.appName, runtime.appDescription)
+    reduxState: PropTypes.object.isRequired,
   }).isRequired,
   children: PropTypes.string.isRequired,
 };

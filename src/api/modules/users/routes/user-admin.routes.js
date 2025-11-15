@@ -18,12 +18,18 @@ import { userAdminController } from '../controllers';
  * @param {Object} deps - Dependencies injected by parent router
  * @param {Function} deps.Router - Express Router constructor
  * @param {Object} middlewares - Authentication middlewares
+ * @param {Object} app - Express application instance
  * @returns {Router} Express router with user admin routes
  */
-export default function userAdminRoutes(deps, middlewares) {
-  const { Router } = deps;
-  const { requireAuth, requireAdmin } = middlewares;
-  const router = Router();
+export default function userAdminRoutes(deps, middlewares, app) {
+  const { requireAdmin } = middlewares;
+  const router = deps.Router();
+
+  // Create auth middleware instance
+  const auth = app.get('auth');
+  const requireAuth = auth.middlewares.requireAuth({
+    jwtSecret: app.get('jwtSecret'),
+  });
 
   /**
    * @route   GET /list

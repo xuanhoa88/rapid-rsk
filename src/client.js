@@ -11,9 +11,9 @@ import ReactDOM from 'react-dom';
 import 'whatwg-fetch';
 import App from './components/App';
 import { createFetch } from './createFetch';
-import { getI18nInstance } from './i18n';
+import { DEFAULT_LOCALE, getI18nInstance } from './i18n';
 import * as navigator from './navigator';
-import router from './routes';
+import { router } from './pages';
 import { configureStore } from './redux';
 
 /**
@@ -34,10 +34,6 @@ try {
   createRoot = null;
   hydrateRoot = null;
 }
-
-// -------------------------------------------------------------------------
-// DOM Helper Functions
-// -------------------------------------------------------------------------
 
 /**
  * Update document title
@@ -127,10 +123,7 @@ function updatePageMetadata({
 // Application Initialization
 // -------------------------------------------------------------------------
 
-const fetch = createFetch(window.fetch, {
-  // eslint-disable-next-line no-underscore-dangle
-  baseUrl: window.__APP_STATE__.apiUrl,
-});
+const fetch = createFetch(window.fetch);
 
 // eslint-disable-next-line no-underscore-dangle
 const store = configureStore(window.__APP_STATE__.reduxState, {
@@ -152,7 +145,7 @@ const context = {
   i18n,
   get locale() {
     const { intl } = store.getState();
-    return (intl && intl.locale) || 'en-US';
+    return (intl && intl.locale) || DEFAULT_LOCALE;
   },
 };
 
@@ -426,8 +419,8 @@ if (isDOMReady) {
 }
 
 // Hot module replacement for route changes
-if (__DEV__ && module.hot) {
-  module.hot.accept('./routes', () => {
+if (module.hot) {
+  module.hot.accept('./pages', () => {
     onLocationChange(currentLocation);
   });
 }

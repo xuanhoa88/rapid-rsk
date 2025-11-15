@@ -5,8 +5,6 @@
  * LICENSE.txt file in the root directory of this source tree.
  */
 
-import { hashPassword, verifyPassword } from '../utils/password';
-
 // ========================================================================
 // AUTHENTICATION SERVICES
 // ========================================================================
@@ -18,11 +16,13 @@ import { hashPassword, verifyPassword } from '../utils/password';
  * @param {string} userData.email - User email
  * @param {string} userData.password - User password
  * @param {string} userData.displayName - User display name (optional)
- * @param {Object} models - Database models
+ * @param {Object} options - Options object
+ * @param {Object} options.models - Database models
+ * @param {Object} options.auth - Auth utilities from global auth engine
  * @returns {Promise<Object>} Created user with profile
  * @throws {Error} If user already exists or creation fails
  */
-export async function registerUser(userData, models) {
+export async function registerUser(userData, { models, auth }) {
   const { email, password, displayName } = userData;
   const { User, UserProfile } = models;
 
@@ -32,8 +32,8 @@ export async function registerUser(userData, models) {
     throw new Error('User already exists');
   }
 
-  // Hash password
-  const hashedPassword = await hashPassword(password);
+  // Hash password using global auth utilities
+  const hashedPassword = await auth.password.hashPassword(password);
 
   // Create user with profile
   const user = await User.create(
@@ -62,11 +62,13 @@ export async function registerUser(userData, models) {
  *
  * @param {string} email - User email
  * @param {string} password - User password
- * @param {Object} models - Database models
+ * @param {Object} options - Options object
+ * @param {Object} options.models - Database models
+ * @param {Object} options.auth - Auth utilities from global auth engine
  * @returns {Promise<Object>} User with profile
  * @throws {Error} If credentials are invalid
  */
-export async function authenticateUser(email, password, models) {
+export async function authenticateUser(email, password, { models, auth }) {
   const { User, UserProfile, UserLogin } = models;
 
   // Find user with profile
@@ -89,8 +91,11 @@ export async function authenticateUser(email, password, models) {
     throw new Error('Account is locked');
   }
 
-  // Verify password
-  const isValidPassword = await verifyPassword(password, user.password);
+  // Verify password using global auth utilities
+  const isValidPassword = await auth.password.verifyPassword(
+    password,
+    user.password,
+  );
   if (!isValidPassword) {
     // Increment failed login attempts
     await user.increment('failedLoginAttempts');
@@ -193,11 +198,13 @@ export async function requestPasswordReset(email, models) {
  *
  * @param {string} token - Password reset token
  * @param {string} newPassword - New password
- * @param {Object} models - Database models
+ * @param {Object} options - Options object
+ * @param {Object} options.models - Database models
+ * @param {Object} options.auth - Auth utilities from global auth engine
  * @returns {Promise<Object>} Updated user
  * @throws {Error} If token is invalid or expired
  */
-export async function resetPassword(token, newPassword, models) {
+export async function resetPassword(token, newPassword, { models, auth }) {
   const { User } = models;
 
   try {
@@ -209,8 +216,8 @@ export async function resetPassword(token, newPassword, models) {
       throw new Error('Invalid or expired token');
     }
 
-    // Hash new password
-    const hashedPassword = await hashPassword(newPassword);
+    // Hash new password using global auth utilities
+    const hashedPassword = await auth.password.hashPassword(newPassword);
 
     // Update password and reset failed login attempts
     await user.update({
@@ -223,28 +230,6 @@ export async function resetPassword(token, newPassword, models) {
   } catch (error) {
     throw new Error('Invalid or expired token');
   }
-}
-
-/**
- * Get user with profile for authentication
- *
- * @param {string} userId - User ID
- * @param {Object} models - Database models
- * @returns {Promise<Object>} User with profile
- * @throws {Error} If user not found
- */
-export async function getUserWithProfile(userId, models) {
-  const { User, UserProfile } = models;
-
-  const user = await User.findByPk(userId, {
-    include: [{ model: UserProfile, as: 'profile' }],
-  });
-
-  if (!user) {
-    throw new Error('User not found');
-  }
-
-  return user;
 }
 
 /**

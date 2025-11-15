@@ -126,7 +126,6 @@ temp/
 *.launch
 .settings/
 *.tmproj
-.vscode/*
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json

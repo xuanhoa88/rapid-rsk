@@ -6,13 +6,6 @@
  */
 
 import { roleService } from '../services';
-import {
-  sendSuccess,
-  sendError,
-  sendValidationError,
-  sendNotFound,
-  sendServerError,
-} from '../../../engines/http';
 
 // ========================================================================
 // ROLE MANAGEMENT CONTROLLERS
@@ -27,12 +20,13 @@ import {
  * @param {Object} res - Express response object
  */
 export async function createRole(req, res) {
+  const http = req.app.get('http');
   try {
     const { name, description } = req.body;
 
     // Validate input
     if (!name) {
-      return sendValidationError(res, {
+      return http.sendValidationError(res, {
         name: 'Role name is required',
       });
     }
@@ -43,13 +37,13 @@ export async function createRole(req, res) {
     // Create role
     const role = await roleService.createRole({ name, description }, models);
 
-    return sendSuccess(res, { role }, 201);
+    return http.sendSuccess(res, { role }, 201);
   } catch (error) {
     if (error.message.includes('already exists')) {
-      return sendError(res, error.message, 409);
+      return http.sendError(res, error.message, 409);
     }
 
-    return sendServerError(res, 'Failed to create role');
+    return http.sendServerError(res, 'Failed to create role');
   }
 }
 
@@ -62,6 +56,7 @@ export async function createRole(req, res) {
  * @param {Object} res - Express response object
  */
 export async function getRoles(req, res) {
+  const http = req.app.get('http');
   try {
     const { page = 1, limit = 10, search = '' } = req.query;
 
@@ -71,9 +66,9 @@ export async function getRoles(req, res) {
     // Get roles
     const result = await roleService.getRoles({ page, limit, search }, models);
 
-    return sendSuccess(res, result);
+    return http.sendSuccess(res, result);
   } catch (error) {
-    return sendServerError(res, 'Failed to get roles');
+    return http.sendServerError(res, 'Failed to get roles');
   }
 }
 
@@ -86,6 +81,7 @@ export async function getRoles(req, res) {
  * @param {Object} res - Express response object
  */
 export async function getRoleById(req, res) {
+  const http = req.app.get('http');
   try {
     const { id } = req.params;
     const models = req.app.get('models');
@@ -102,12 +98,12 @@ export async function getRoleById(req, res) {
     });
 
     if (!role) {
-      return sendNotFound(res, 'Role not found');
+      return http.sendNotFound(res, 'Role not found');
     }
 
-    return sendSuccess(res, { role });
+    return http.sendSuccess(res, { role });
   } catch (error) {
-    return sendServerError(res, 'Failed to get role');
+    return http.sendServerError(res, 'Failed to get role');
   }
 }
 
@@ -120,6 +116,7 @@ export async function getRoleById(req, res) {
  * @param {Object} res - Express response object
  */
 export async function updateRole(req, res) {
+  const http = req.app.get('http');
   try {
     const { id } = req.params;
     const { name, description } = req.body;
@@ -128,7 +125,7 @@ export async function updateRole(req, res) {
 
     const role = await Role.findByPk(id);
     if (!role) {
-      return sendNotFound(res, 'Role not found');
+      return http.sendNotFound(res, 'Role not found');
     }
 
     // Update role
@@ -137,13 +134,13 @@ export async function updateRole(req, res) {
       description: description !== undefined ? description : role.description,
     });
 
-    return sendSuccess(res, { role });
+    return http.sendSuccess(res, { role });
   } catch (error) {
     if (error.message.includes('already exists')) {
-      return sendError(res, error.message, 409);
+      return http.sendError(res, error.message, 409);
     }
 
-    return sendServerError(res, 'Failed to update role');
+    return http.sendServerError(res, 'Failed to update role');
   }
 }
 
@@ -156,6 +153,7 @@ export async function updateRole(req, res) {
  * @param {Object} res - Express response object
  */
 export async function deleteRole(req, res) {
+  const http = req.app.get('http');
   try {
     const { id } = req.params;
     const models = req.app.get('models');
@@ -163,21 +161,21 @@ export async function deleteRole(req, res) {
 
     const role = await Role.findByPk(id);
     if (!role) {
-      return sendNotFound(res, 'Role not found');
+      return http.sendNotFound(res, 'Role not found');
     }
 
     // Prevent deletion of system roles
     if (['admin', 'user'].includes(role.name)) {
-      return sendError(res, 'Cannot delete system roles', 400);
+      return http.sendError(res, 'Cannot delete system roles', 400);
     }
 
     await role.destroy();
 
-    return sendSuccess(res, {
+    return http.sendSuccess(res, {
       message: `Role '${role.name}' deleted successfully`,
     });
   } catch (error) {
-    return sendServerError(res, 'Failed to delete role');
+    return http.sendServerError(res, 'Failed to delete role');
   }
 }
 
@@ -190,13 +188,14 @@ export async function deleteRole(req, res) {
  * @param {Object} res - Express response object
  */
 export async function assignPermissionsToRole(req, res) {
+  const http = req.app.get('http');
   try {
     const { id } = req.params;
     const { permissionIds } = req.body;
 
     // Validate input
     if (!Array.isArray(permissionIds)) {
-      return sendValidationError(res, {
+      return http.sendValidationError(res, {
         permissionIds: 'Permission IDs must be an array',
       });
     }
@@ -211,18 +210,18 @@ export async function assignPermissionsToRole(req, res) {
       models,
     );
 
-    return sendSuccess(res, { role });
+    return http.sendSuccess(res, { role });
   } catch (error) {
     if (error.message === 'Role not found') {
-      return sendNotFound(res, error.message);
+      return http.sendNotFound(res, error.message);
     }
 
     if (error.message.includes('permissions not found')) {
-      return sendValidationError(res, {
+      return http.sendValidationError(res, {
         permissionIds: error.message,
       });
     }
 
-    return sendServerError(res, 'Failed to assign permissions to role');
+    return http.sendServerError(res, 'Failed to assign permissions to role');
   }
 }

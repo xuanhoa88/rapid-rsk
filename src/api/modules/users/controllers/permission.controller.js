@@ -6,13 +6,6 @@
  */
 
 import { permissionService } from '../services';
-import {
-  sendSuccess,
-  sendError,
-  sendValidationError,
-  sendNotFound,
-  sendServerError,
-} from '../../../engines/http';
 
 // ========================================================================
 // PERMISSION MANAGEMENT CONTROLLERS
@@ -27,6 +20,7 @@ import {
  * @param {Object} res - Express response object
  */
 export async function createPermission(req, res) {
+  const http = req.app.get('http');
   try {
     const { name, resource, action, description } = req.body;
 
@@ -37,7 +31,7 @@ export async function createPermission(req, res) {
     if (!action) errors.action = 'Action is required';
 
     if (Object.keys(errors).length > 0) {
-      return sendValidationError(res, errors);
+      return http.sendValidationError(res, errors);
     }
 
     // Get models from app context
@@ -49,13 +43,13 @@ export async function createPermission(req, res) {
       models,
     );
 
-    return sendSuccess(res, { permission }, 201);
+    return http.sendSuccess(res, { permission }, 201);
   } catch (error) {
     if (error.message.includes('already exists')) {
-      return sendError(res, error.message, 409);
+      return http.sendError(res, error.message, 409);
     }
 
-    return sendServerError(res, 'Failed to create permission');
+    return http.sendServerError(res, 'Failed to create permission');
   }
 }
 
@@ -68,6 +62,7 @@ export async function createPermission(req, res) {
  * @param {Object} res - Express response object
  */
 export async function getPermissions(req, res) {
+  const http = req.app.get('http');
   try {
     const { page = 1, limit = 10, search = '', resource = '' } = req.query;
 
@@ -80,9 +75,9 @@ export async function getPermissions(req, res) {
       models,
     );
 
-    return sendSuccess(res, result);
+    return http.sendSuccess(res, result);
   } catch (error) {
-    return sendServerError(res, 'Failed to get permissions');
+    return http.sendServerError(res, 'Failed to get permissions');
   }
 }
 
@@ -95,6 +90,7 @@ export async function getPermissions(req, res) {
  * @param {Object} res - Express response object
  */
 export async function getPermissionById(req, res) {
+  const http = req.app.get('http');
   try {
     const { id } = req.params;
     const models = req.app.get('models');
@@ -103,12 +99,12 @@ export async function getPermissionById(req, res) {
     const permission = await Permission.findByPk(id);
 
     if (!permission) {
-      return sendNotFound(res, 'Permission not found');
+      return http.sendNotFound(res, 'Permission not found');
     }
 
-    return sendSuccess(res, { permission });
+    return http.sendSuccess(res, { permission });
   } catch (error) {
-    return sendServerError(res, 'Failed to get permission');
+    return http.sendServerError(res, 'Failed to get permission');
   }
 }
 
@@ -121,6 +117,7 @@ export async function getPermissionById(req, res) {
  * @param {Object} res - Express response object
  */
 export async function updatePermission(req, res) {
+  const http = req.app.get('http');
   try {
     const { id } = req.params;
     const { name, resource, action, description } = req.body;
@@ -129,7 +126,7 @@ export async function updatePermission(req, res) {
 
     const permission = await Permission.findByPk(id);
     if (!permission) {
-      return sendNotFound(res, 'Permission not found');
+      return http.sendNotFound(res, 'Permission not found');
     }
 
     // Update permission
@@ -141,13 +138,13 @@ export async function updatePermission(req, res) {
         description !== undefined ? description : permission.description,
     });
 
-    return sendSuccess(res, { permission });
+    return http.sendSuccess(res, { permission });
   } catch (error) {
     if (error.message.includes('already exists')) {
-      return sendError(res, error.message, 409);
+      return http.sendError(res, error.message, 409);
     }
 
-    return sendServerError(res, 'Failed to update permission');
+    return http.sendServerError(res, 'Failed to update permission');
   }
 }
 
@@ -160,6 +157,7 @@ export async function updatePermission(req, res) {
  * @param {Object} res - Express response object
  */
 export async function deletePermission(req, res) {
+  const http = req.app.get('http');
   try {
     const { id } = req.params;
     const models = req.app.get('models');
@@ -167,7 +165,7 @@ export async function deletePermission(req, res) {
 
     const permission = await Permission.findByPk(id);
     if (!permission) {
-      return sendNotFound(res, 'Permission not found');
+      return http.sendNotFound(res, 'Permission not found');
     }
 
     // Prevent deletion of system permissions
@@ -180,16 +178,16 @@ export async function deletePermission(req, res) {
     ];
 
     if (systemPermissions.includes(permission.name)) {
-      return sendError(res, 'Cannot delete system permissions', 400);
+      return http.sendError(res, 'Cannot delete system permissions', 400);
     }
 
     await permission.destroy();
 
-    return sendSuccess(res, {
+    return http.sendSuccess(res, {
       message: `Permission '${permission.name}' deleted successfully`,
     });
   } catch (error) {
-    return sendServerError(res, 'Failed to delete permission');
+    return http.sendServerError(res, 'Failed to delete permission');
   }
 }
 
@@ -202,6 +200,7 @@ export async function deletePermission(req, res) {
  * @param {Object} res - Express response object
  */
 export async function getPermissionsByResource(req, res) {
+  const http = req.app.get('http');
   try {
     const { resource } = req.params;
     const models = req.app.get('models');
@@ -212,9 +211,9 @@ export async function getPermissionsByResource(req, res) {
       order: [['action', 'ASC']],
     });
 
-    return sendSuccess(res, { permissions, resource });
+    return http.sendSuccess(res, { permissions, resource });
   } catch (error) {
-    return sendServerError(res, 'Failed to get permissions by resource');
+    return http.sendServerError(res, 'Failed to get permissions by resource');
   }
 }
 
@@ -227,18 +226,20 @@ export async function getPermissionsByResource(req, res) {
  * @param {Object} res - Express response object
  */
 export async function initializeDefaultPermissions(req, res) {
+  const http = req.app.get('http');
   try {
     // Get models from app context
     const models = req.app.get('models');
 
     // Create default permissions
-    const permissions = await permissionService.createDefaultPermissions(models);
+    const permissions =
+      await permissionService.createDefaultPermissions(models);
 
-    return sendSuccess(res, {
+    return http.sendSuccess(res, {
       message: `Created ${permissions.length} default permissions`,
       permissions,
     });
   } catch (error) {
-    return sendServerError(res, 'Failed to initialize permissions');
+    return http.sendServerError(res, 'Failed to initialize permissions');
   }
 }

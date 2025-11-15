@@ -6,13 +6,6 @@
  */
 
 import { groupService } from '../services';
-import {
-  sendSuccess,
-  sendError,
-  sendValidationError,
-  sendNotFound,
-  sendServerError,
-} from '../../../engines/http';
 
 // ========================================================================
 // GROUP MANAGEMENT CONTROLLERS
@@ -27,12 +20,13 @@ import {
  * @param {Object} res - Express response object
  */
 export async function createGroup(req, res) {
+  const http = req.app.get('http');
   try {
     const { name, description } = req.body;
 
     // Validate input
     if (!name) {
-      return sendValidationError(res, {
+      return http.sendValidationError(res, {
         name: 'Group name is required',
       });
     }
@@ -43,13 +37,13 @@ export async function createGroup(req, res) {
     // Create group
     const group = await groupService.createGroup({ name, description }, models);
 
-    return sendSuccess(res, { group }, 201);
+    return http.sendSuccess(res, { group }, 201);
   } catch (error) {
     if (error.message.includes('already exists')) {
-      return sendError(res, error.message, 409);
+      return http.sendError(res, error.message, 409);
     }
 
-    return sendServerError(res, 'Failed to create group');
+    return http.sendServerError(res, 'Failed to create group');
   }
 }
 
@@ -62,6 +56,7 @@ export async function createGroup(req, res) {
  * @param {Object} res - Express response object
  */
 export async function getGroups(req, res) {
+  const http = req.app.get('http');
   try {
     const { page = 1, limit = 10, search = '' } = req.query;
 
@@ -69,11 +64,14 @@ export async function getGroups(req, res) {
     const models = req.app.get('models');
 
     // Get groups
-    const result = await groupService.getGroups({ page, limit, search }, models);
+    const result = await groupService.getGroups(
+      { page, limit, search },
+      models,
+    );
 
-    return sendSuccess(res, result);
+    return http.sendSuccess(res, result);
   } catch (error) {
-    return sendServerError(res, 'Failed to get groups');
+    return http.sendServerError(res, 'Failed to get groups');
   }
 }
 
@@ -86,6 +84,7 @@ export async function getGroups(req, res) {
  * @param {Object} res - Express response object
  */
 export async function getGroupById(req, res) {
+  const http = req.app.get('http');
   try {
     const { id } = req.params;
     const models = req.app.get('models');
@@ -108,12 +107,12 @@ export async function getGroupById(req, res) {
     });
 
     if (!group) {
-      return sendNotFound(res, 'Group not found');
+      return http.sendNotFound(res, 'Group not found');
     }
 
-    return sendSuccess(res, { group });
+    return http.sendSuccess(res, { group });
   } catch (error) {
-    return sendServerError(res, 'Failed to get group');
+    return http.sendServerError(res, 'Failed to get group');
   }
 }
 
@@ -126,6 +125,7 @@ export async function getGroupById(req, res) {
  * @param {Object} res - Express response object
  */
 export async function updateGroup(req, res) {
+  const http = req.app.get('http');
   try {
     const { id } = req.params;
     const { name, description } = req.body;
@@ -134,7 +134,7 @@ export async function updateGroup(req, res) {
 
     const group = await Group.findByPk(id);
     if (!group) {
-      return sendNotFound(res, 'Group not found');
+      return http.sendNotFound(res, 'Group not found');
     }
 
     // Update group
@@ -143,13 +143,13 @@ export async function updateGroup(req, res) {
       description: description !== undefined ? description : group.description,
     });
 
-    return sendSuccess(res, { group });
+    return http.sendSuccess(res, { group });
   } catch (error) {
     if (error.message.includes('already exists')) {
-      return sendError(res, error.message, 409);
+      return http.sendError(res, error.message, 409);
     }
 
-    return sendServerError(res, 'Failed to update group');
+    return http.sendServerError(res, 'Failed to update group');
   }
 }
 
@@ -162,6 +162,7 @@ export async function updateGroup(req, res) {
  * @param {Object} res - Express response object
  */
 export async function deleteGroup(req, res) {
+  const http = req.app.get('http');
   try {
     const { id } = req.params;
     const models = req.app.get('models');
@@ -169,21 +170,21 @@ export async function deleteGroup(req, res) {
 
     const group = await Group.findByPk(id);
     if (!group) {
-      return sendNotFound(res, 'Group not found');
+      return http.sendNotFound(res, 'Group not found');
     }
 
     // Prevent deletion of system groups
     if (['administrators', 'staff'].includes(group.name)) {
-      return sendError(res, 'Cannot delete system groups', 400);
+      return http.sendError(res, 'Cannot delete system groups', 400);
     }
 
     await group.destroy();
 
-    return sendSuccess(res, {
+    return http.sendSuccess(res, {
       message: `Group '${group.name}' deleted successfully`,
     });
   } catch (error) {
-    return sendServerError(res, 'Failed to delete group');
+    return http.sendServerError(res, 'Failed to delete group');
   }
 }
 
@@ -196,13 +197,14 @@ export async function deleteGroup(req, res) {
  * @param {Object} res - Express response object
  */
 export async function assignRolesToGroup(req, res) {
+  const http = req.app.get('http');
   try {
     const { id } = req.params;
     const { roleIds } = req.body;
 
     // Validate input
     if (!Array.isArray(roleIds)) {
-      return sendValidationError(res, {
+      return http.sendValidationError(res, {
         roleIds: 'Role IDs must be an array',
       });
     }
@@ -212,7 +214,7 @@ export async function assignRolesToGroup(req, res) {
 
     const group = await Group.findByPk(id);
     if (!group) {
-      return sendNotFound(res, 'Group not found');
+      return http.sendNotFound(res, 'Group not found');
     }
 
     // Verify all roles exist
@@ -221,7 +223,7 @@ export async function assignRolesToGroup(req, res) {
     });
 
     if (roles.length !== roleIds.length) {
-      return sendValidationError(res, {
+      return http.sendValidationError(res, {
         roleIds: 'One or more roles not found',
       });
     }
@@ -240,9 +242,9 @@ export async function assignRolesToGroup(req, res) {
       ],
     });
 
-    return sendSuccess(res, { group: updatedGroup });
+    return http.sendSuccess(res, { group: updatedGroup });
   } catch (error) {
-    return sendServerError(res, 'Failed to assign roles to group');
+    return http.sendServerError(res, 'Failed to assign roles to group');
   }
 }
 
@@ -255,6 +257,7 @@ export async function assignRolesToGroup(req, res) {
  * @param {Object} res - Express response object
  */
 export async function getGroupMembers(req, res) {
+  const http = req.app.get('http');
   try {
     const { id } = req.params;
     const { page = 1, limit = 10 } = req.query;
@@ -265,7 +268,7 @@ export async function getGroupMembers(req, res) {
 
     const group = await Group.findByPk(id);
     if (!group) {
-      return sendNotFound(res, 'Group not found');
+      return http.sendNotFound(res, 'Group not found');
     }
 
     const { count, rows: users } = await User.findAndCountAll({
@@ -283,7 +286,7 @@ export async function getGroupMembers(req, res) {
       order: [['displayName', 'ASC']],
     });
 
-    return sendSuccess(res, {
+    return http.sendSuccess(res, {
       group: { id: group.id, name: group.name },
       members: users,
       pagination: {
@@ -294,6 +297,6 @@ export async function getGroupMembers(req, res) {
       },
     });
   } catch (error) {
-    return sendServerError(res, 'Failed to get group members');
+    return http.sendServerError(res, 'Failed to get group members');
   }
 }

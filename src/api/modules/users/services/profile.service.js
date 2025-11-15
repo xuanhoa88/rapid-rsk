@@ -5,7 +5,6 @@
  * LICENSE.txt file in the root directory of this source tree.
  */
 
-import { hashPassword, verifyPassword } from '../utils/password';
 import path from 'path';
 
 // ========================================================================
@@ -214,7 +213,7 @@ export async function changeUserPassword(
   userId,
   currentPassword,
   newPassword,
-  models,
+  { models, auth },
 ) {
   const { User } = models;
 
@@ -224,13 +223,16 @@ export async function changeUserPassword(
   }
 
   // Verify current password
-  const isValidPassword = await verifyPassword(currentPassword, user.password);
+  const isValidPassword = await auth.password.verifyPassword(
+    currentPassword,
+    user.password,
+  );
   if (!isValidPassword) {
     throw new Error('Invalid current password');
   }
 
   // Hash new password
-  const hashedPassword = await hashPassword(newPassword);
+  const hashedPassword = await auth.password.hashPassword(newPassword);
 
   // Update password
   await user.update({ password: hashedPassword });
@@ -346,11 +348,11 @@ export async function getUserPreferences(userId, models) {
  *
  * @param {string} userId - User ID
  * @param {string} password - User password for confirmation
- * @param {Object} models - Database models
+ * @param {Object} {models, auth} - Database models and authentication engine
  * @returns {Promise<boolean>} Success status
  * @throws {Error} If user not found or password invalid
  */
-export async function deleteUserAccount(userId, password, models) {
+export async function deleteUserAccount(userId, password, { models, auth }) {
   const { User, UserProfile } = models;
 
   const user = await User.findByPk(userId);
@@ -359,7 +361,10 @@ export async function deleteUserAccount(userId, password, models) {
   }
 
   // Verify password
-  const isValidPassword = await verifyPassword(password, user.password);
+  const isValidPassword = await auth.password.verifyPassword(
+    password,
+    user.password,
+  );
   if (!isValidPassword) {
     throw new Error('Invalid password');
   }

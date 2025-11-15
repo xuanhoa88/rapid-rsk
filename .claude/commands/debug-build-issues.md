@@ -5,6 +5,7 @@ Debug common build and runtime issues in the React Starter Kit:
 ### 1. Webpack Build Fails
 
 **Symptoms:**
+
 ```
 ERROR in ./src/components/App.js
 Module not found: Error: Can't resolve 'some-module'
@@ -30,16 +31,19 @@ npm run build
 ### 2. Babel Transpilation Errors
 
 **Symptoms:**
+
 ```
 SyntaxError: Unexpected token
 ```
 
 **Check:**
+
 - `.babelrc.js` configuration is correct
 - All required Babel plugins are installed
 - Node.js version is >= 16.0.0
 
 **Fix:**
+
 ```bash
 # Reinstall Babel dependencies
 npm install --save-dev @babel/core @babel/preset-env @babel/preset-react
@@ -51,6 +55,7 @@ cat .babelrc.js
 ### 3. CSS Module Import Errors
 
 **Symptoms:**
+
 ```
 Module parse failed: Unexpected token
 You may need an appropriate loader
@@ -80,12 +85,14 @@ Check `tools/webpack/client.js` has CSS loaders configured:
 ### 4. Memory Issues During Build
 
 **Symptoms:**
+
 ```
 FATAL ERROR: Ineffective mark-compacts near heap limit
 JavaScript heap out of memory
 ```
 
 **Solution:**
+
 ```bash
 # Increase Node.js memory limit
 export NODE_OPTIONS="--max-old-space-size=4096"
@@ -100,6 +107,7 @@ npm run build
 ### 1. Hot Module Replacement Not Working
 
 **Check:**
+
 1. Development server is running: `npm start`
 2. Browser console shows HMR connection:
    ```
@@ -107,6 +115,7 @@ npm run build
    ```
 
 **Debug:**
+
 ```bash
 # Check if webpack-hot-middleware is loaded
 # Look for this in browser console
@@ -118,6 +127,7 @@ npm start
 ```
 
 **Fix in `tools/tasks/start.js`:**
+
 ```javascript
 // Ensure HMR client is added to entry points
 if (isClient) {
@@ -130,37 +140,10 @@ if (isClient) {
 }
 ```
 
-### 2. React Refresh Not Working
+### 2. Server-Side Rendering Errors
 
 **Symptoms:**
-- Changes require full page reload
-- Component state is lost on updates
 
-**Check:**
-1. React Refresh plugin is enabled in development
-2. Babel plugin is configured
-
-**Fix `.babelrc.js`:**
-```javascript
-plugins: [
-  ...(isDevelopment ? ['react-refresh/babel'] : []),
-]
-```
-
-**Fix `tools/tasks/start.js`:**
-```javascript
-if (isClient) {
-  config.plugins.push(
-    new ReactRefreshWebpackPlugin({
-      overlay: { sockIntegration: 'whm' },
-    }),
-  );
-}
-```
-
-### 3. Server-Side Rendering Errors
-
-**Symptoms:**
 ```
 Error: Minified React error #418
 or
@@ -168,11 +151,13 @@ Error: Text content does not match server-rendered HTML
 ```
 
 **Common Causes:**
+
 1. Using browser-only APIs in SSR
 2. Different data on server vs client
 3. Non-deterministic rendering
 
 **Fix:**
+
 ```javascript
 // Check if running in browser
 if (typeof window !== 'undefined') {
@@ -188,17 +173,20 @@ useEffect(() => {
 }, []);
 ```
 
-### 4. CSS Not Loading
+### 3. CSS Not Loading
 
 **Symptoms:**
+
 - Styles not applied
 - `insertCss is not a function` error
 
 **Check:**
+
 1. CSS Module import is correct
 2. `insertCss` is called in component
 
 **Fix:**
+
 ```javascript
 import React, { useEffect } from 'react';
 import { useAppContext } from '../../hooks/useAppContext';
@@ -206,38 +194,37 @@ import s from './MyComponent.css';
 
 function MyComponent() {
   const { insertCss } = useAppContext();
-  
+
   useEffect(() => {
     const removeCss = insertCss(s);
     return () => removeCss();
   }, [insertCss]);
-  
+
   return <div className={s.container}>Content</div>;
 }
 ```
 
-### 5. Redux State Not Updating
+### 4. Redux State Not Updating
 
 **Symptoms:**
+
 - Component doesn't re-render on state change
 - `useSelector` returns stale data
 
 **Check:**
+
 1. Redux Provider is wrapping app
 2. Reducer is returning new state object
 3. Action is dispatched correctly
 
 **Debug:**
+
 ```javascript
 // Add Redux DevTools
 import { createStore } from 'redux';
 import { composeWithDevTools } from 'redux-devtools-extension';
 
-const store = createStore(
-  rootReducer,
-  initialState,
-  composeWithDevTools(),
-);
+const store = createStore(rootReducer, initialState, composeWithDevTools());
 
 // Check if action is dispatched
 const dispatch = useDispatch();
@@ -251,22 +238,25 @@ const data = useSelector(state => {
 });
 ```
 
-### 6. Authentication Issues
+### 5. Authentication Issues
 
 **Symptoms:**
+
 - JWT token not persisted
 - User logged out on refresh
 - 401 Unauthorized errors
 
 **Check:**
+
 1. Cookie is set with correct options
 2. JWT secret matches between sign and verify
 3. Token is not expired
 
 **Debug:**
+
 ```javascript
 // Check cookie in browser
-document.cookie
+document.cookie;
 
 // Check JWT payload
 import jwt from 'jsonwebtoken';
@@ -288,6 +278,7 @@ app.use((req, res, next) => {
 ### 1. Slow Build Times
 
 **Solutions:**
+
 ```bash
 # Enable webpack caching
 # In webpack config:
@@ -307,6 +298,7 @@ npm run build -- --analyze
 ### 2. Large Bundle Size
 
 **Check bundle composition:**
+
 ```bash
 # Build with analysis
 BUILD_ANALYZE=true npm run build
@@ -316,6 +308,7 @@ open build/bundle-stats.html
 ```
 
 **Solutions:**
+
 1. Enable code splitting
 2. Use dynamic imports
 3. Remove unused dependencies
@@ -324,12 +317,14 @@ open build/bundle-stats.html
 ### 3. Slow Page Loads
 
 **Check:**
+
 1. Enable gzip compression
 2. Use code splitting
 3. Optimize images
 4. Enable caching headers
 
 **Add compression middleware:**
+
 ```javascript
 import compression from 'compression';
 
@@ -402,6 +397,7 @@ cat build/build-report.json | jq '.artifacts'
 ## Common Error Messages
 
 ### "Cannot find module"
+
 ```bash
 # Solution: Install missing dependency
 npm install missing-module
@@ -412,6 +408,7 @@ npm install
 ```
 
 ### "Module build failed"
+
 ```bash
 # Solution: Check loader configuration
 # Ensure appropriate loaders are installed and configured
@@ -419,6 +416,7 @@ npm install --save-dev babel-loader css-loader style-loader
 ```
 
 ### "Port 3000 is already in use"
+
 ```bash
 # Solution: Kill process using port
 lsof -ti:3000 | xargs kill -9
@@ -428,6 +426,7 @@ PORT=3001 npm start
 ```
 
 ### "ENOSPC: System limit for number of file watchers reached"
+
 ```bash
 # Solution: Increase file watcher limit (Linux)
 echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf

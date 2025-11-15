@@ -6,12 +6,7 @@
  */
 
 import { profileService } from '../services';
-import {
-  sendSuccess,
-  sendValidationError,
-  sendNotFound,
-  sendServerError,
-} from '../../../engines/http';
+// Note: HTTP utilities are accessed via req.app.get('http')
 import { validatePassword } from '../utils/validation';
 
 // ========================================================================
@@ -27,6 +22,7 @@ import { validatePassword } from '../utils/validation';
  * @param {Object} res - Express response object
  */
 export async function getProfile(req, res) {
+  const http = req.app.get('http');
   try {
     // Get models from app context
     const models = req.app.get('models');
@@ -35,10 +31,10 @@ export async function getProfile(req, res) {
     const user = await profileService.getUserWithProfile(req.user.id, models);
 
     if (!user) {
-      return sendNotFound(res, 'User not found');
+      return http.sendNotFound(res, 'User not found');
     }
 
-    return sendSuccess(res, {
+    return http.sendSuccess(res, {
       profile: {
         id: user.id,
         email: user.email,
@@ -57,7 +53,7 @@ export async function getProfile(req, res) {
       },
     });
   } catch (error) {
-    return sendServerError(res, 'Failed to get user profile');
+    return http.sendServerError(res, 'Failed to get user profile');
   }
 }
 
@@ -70,6 +66,7 @@ export async function getProfile(req, res) {
  * @param {Object} res - Express response object
  */
 export async function updateProfile(req, res) {
+  const http = req.app.get('http');
   try {
     const { displayName, firstName, lastName, bio, location, website } =
       req.body;
@@ -91,7 +88,7 @@ export async function updateProfile(req, res) {
       models,
     );
 
-    return sendSuccess(res, {
+    return http.sendSuccess(res, {
       profile: {
         id: user.id,
         email: user.email,
@@ -110,7 +107,7 @@ export async function updateProfile(req, res) {
       },
     });
   } catch (error) {
-    return sendServerError(res, 'Failed to update profile');
+    return http.sendServerError(res, 'Failed to update profile');
   }
 }
 
@@ -123,9 +120,10 @@ export async function updateProfile(req, res) {
  * @param {Object} res - Express response object
  */
 export async function uploadAvatar(req, res) {
+  const http = req.app.get('http');
   try {
     if (!req.file) {
-      return sendValidationError(res, {
+      return http.sendValidationError(res, {
         avatar: 'Avatar image is required',
       });
     }
@@ -141,7 +139,7 @@ export async function uploadAvatar(req, res) {
     });
 
     // Respond with success message and updated profile
-    return sendSuccess(res, {
+    return http.sendSuccess(res, {
       message: 'Avatar uploaded successfully',
       profile: {
         id: user.id,
@@ -151,18 +149,18 @@ export async function uploadAvatar(req, res) {
     });
   } catch (error) {
     if (error.message === 'Invalid file type') {
-      return sendValidationError(res, {
+      return http.sendValidationError(res, {
         avatar: 'Invalid file type. Only JPEG, PNG, and GIF are allowed',
       });
     }
 
     if (error.message === 'File too large') {
-      return sendValidationError(res, {
+      return http.sendValidationError(res, {
         avatar: 'File too large. Maximum size is 5MB',
       });
     }
 
-    return sendServerError(res, 'Failed to upload avatar');
+    return http.sendServerError(res, 'Failed to upload avatar');
   }
 }
 
@@ -175,6 +173,7 @@ export async function uploadAvatar(req, res) {
  * @param {Object} res - Express response object
  */
 export async function removeAvatar(req, res) {
+  const http = req.app.get('http');
   try {
     // Get filesystem actions and models from app context
     const fs = req.app.get('fs');
@@ -186,7 +185,7 @@ export async function removeAvatar(req, res) {
       fs,
     });
 
-    return sendSuccess(res, {
+    return http.sendSuccess(res, {
       message: 'Avatar removed successfully',
       profile: {
         id: user.id,
@@ -195,7 +194,7 @@ export async function removeAvatar(req, res) {
       },
     });
   } catch (error) {
-    return sendServerError(res, 'Failed to remove avatar');
+    return http.sendServerError(res, 'Failed to remove avatar');
   }
 }
 
@@ -208,6 +207,7 @@ export async function removeAvatar(req, res) {
  * @param {Object} res - Express response object
  */
 export async function changePassword(req, res) {
+  const http = req.app.get('http');
   try {
     const { currentPassword, newPassword } = req.body;
 
@@ -226,31 +226,28 @@ export async function changePassword(req, res) {
     }
 
     if (Object.keys(errors).length > 0) {
-      return sendValidationError(res, errors);
+      return http.sendValidationError(res, errors);
     }
-
-    // Get models from app context
-    const models = req.app.get('models');
 
     // Change password
     await profileService.changeUserPassword(
       req.user.id,
       currentPassword,
       newPassword,
-      models,
+      { models: req.app.get('models'), auth: req.app.get('auth') },
     );
 
-    return sendSuccess(res, {
+    return http.sendSuccess(res, {
       message: 'Password changed successfully',
     });
   } catch (error) {
     if (error.message === 'Invalid current password') {
-      return sendValidationError(res, {
+      return http.sendValidationError(res, {
         currentPassword: 'Current password is incorrect',
       });
     }
 
-    return sendServerError(res, 'Failed to change password');
+    return http.sendServerError(res, 'Failed to change password');
   }
 }
 
@@ -263,6 +260,7 @@ export async function changePassword(req, res) {
  * @param {Object} res - Express response object
  */
 export async function getActivity(req, res) {
+  const http = req.app.get('http');
   try {
     const { page = 1, limit = 10 } = req.query;
 
@@ -276,9 +274,9 @@ export async function getActivity(req, res) {
       models,
     );
 
-    return sendSuccess(res, result);
+    return http.sendSuccess(res, result);
   } catch (error) {
-    return sendServerError(res, 'Failed to get user activity');
+    return http.sendServerError(res, 'Failed to get user activity');
   }
 }
 
@@ -291,6 +289,7 @@ export async function getActivity(req, res) {
  * @param {Object} res - Express response object
  */
 export async function updatePreferences(req, res) {
+  const http = req.app.get('http');
   try {
     const { language, timezone, notifications, theme } = req.body;
 
@@ -309,12 +308,12 @@ export async function updatePreferences(req, res) {
       models,
     );
 
-    return sendSuccess(res, {
+    return http.sendSuccess(res, {
       message: 'Preferences updated successfully',
       preferences,
     });
   } catch (error) {
-    return sendServerError(res, 'Failed to update preferences');
+    return http.sendServerError(res, 'Failed to update preferences');
   }
 }
 
@@ -327,6 +326,7 @@ export async function updatePreferences(req, res) {
  * @param {Object} res - Express response object
  */
 export async function getPreferences(req, res) {
+  const http = req.app.get('http');
   try {
     // Get models from app context
     const models = req.app.get('models');
@@ -337,9 +337,9 @@ export async function getPreferences(req, res) {
       models,
     );
 
-    return sendSuccess(res, { preferences });
+    return http.sendSuccess(res, { preferences });
   } catch (error) {
-    return sendServerError(res, 'Failed to get preferences');
+    return http.sendServerError(res, 'Failed to get preferences');
   }
 }
 
@@ -352,6 +352,7 @@ export async function getPreferences(req, res) {
  * @param {Object} res - Express response object
  */
 export async function deleteAccount(req, res) {
+  const http = req.app.get('http');
   try {
     const { password, confirm } = req.body;
 
@@ -365,28 +366,28 @@ export async function deleteAccount(req, res) {
     }
 
     if (Object.keys(errors).length > 0) {
-      return sendValidationError(res, errors);
+      return http.sendValidationError(res, errors);
     }
 
-    // Get models from app context
-    const models = req.app.get('models');
-
     // Delete account
-    await profileService.deleteUserAccount(req.user.id, password, models);
+    await profileService.deleteUserAccount(req.user.id, password, {
+      models: req.app.get('models'),
+      auth: req.app.get('auth'),
+    });
 
     // Clear token cookie
     res.clearCookie('id_token');
 
-    return sendSuccess(res, {
+    return http.sendSuccess(res, {
       message: 'Account deleted successfully',
     });
   } catch (error) {
     if (error.message === 'Invalid password') {
-      return sendValidationError(res, {
+      return http.sendValidationError(res, {
         password: 'Password is incorrect',
       });
     }
 
-    return sendServerError(res, 'Failed to delete account');
+    return http.sendServerError(res, 'Failed to delete account');
   }
 }

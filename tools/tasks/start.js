@@ -7,10 +7,10 @@
  * LICENSE.txt file in the root directory of this source tree.
  */
 
-import ReactRefreshWebpackPlugin from '@pmmmwh/react-refresh-webpack-plugin';
-import browserSync from 'browser-sync';
+import WebSocket from 'ws';
 import express from 'express';
 import webpack from 'webpack';
+import open from 'open';
 import webpackDevMiddleware from 'webpack-dev-middleware';
 import webpackHotMiddleware from 'webpack-hot-middleware';
 import config from '../config';
@@ -29,9 +29,8 @@ const DEV_CONFIG = {
   open: !silent && !process.env.CI,
 };
 
-let server;
-let browserSyncInstance;
-let app;
+let app, hmr;
+let browserProcess = null;
 
 /**
  * Create compilation promise for webpack compiler
@@ -61,7 +60,7 @@ function createCompilationPromise(name, compiler) {
       }
 
       if (!silent) {
-        logInfo(`✅ ${name} compiled`);
+        logInfo(`✅ '${name}' compiled`);
       }
 
       resolve(stats);
@@ -105,17 +104,10 @@ function configureWebpackForDev(config, isClient = true) {
 
       // Prepend HMR client (must be first to establish connection)
       config.entry[name] = [
-        'webpack-hot-middleware/client?reload=true&overlay=true',
+        'webpack-hot-middleware/client?path=/~/__webpack_hmr&&reload=true&overlay=true',
         ...config.entry[name],
       ];
     });
-
-    // Add React Refresh plugin for Fast Refresh
-    config.plugins.push(
-      new ReactRefreshWebpackPlugin({
-        overlay: { sockIntegration: 'whm' },
-      }),
-    );
   }
   // 4. Server-specific HMR configuration
   else {
@@ -131,7 +123,7 @@ function configureWebpackForDev(config, isClient = true) {
  * Get server module from bundle
  * Clears require cache and loads fresh server bundle
  *
- * @returns {Object} Server module with initializeApp and startAppListening functions
+ * @returns {Object} Server module
  */
 function getServerModule() {
   // Clear require cache to get fresh bundle
@@ -139,6 +131,9 @@ function getServerModule() {
 
   // Load server bundle
   const serverBundle = require(SERVER_BUNDLE_PATH);
+
+  // Get the hot module
+  hmr = serverBundle.default.hot;
 
   // Return clean object with named exports
   return {
@@ -148,54 +143,37 @@ function getServerModule() {
 }
 
 /**
- * Get the hot module from require.cache
- * @returns {Object|null} Hot module or null if not available
- */
-function getHotModule() {
-  const serverModule = require.cache[require.resolve(SERVER_BUNDLE_PATH)];
-  return serverModule && serverModule.hot ? serverModule.hot : null;
-}
-
-/**
  * Apply HMR updates or reload app on failure
  * Simple single-pass update check
  *
- * @param {Object} expressApp - Express app instance
- * @param {string} staticPath - Path to static files directory
  * @returns {Promise<void>}
  */
-async function checkForUpdate(expressApp, staticPath) {
-  const hot = getHotModule();
-
-  // Skip if HMR not available or not ready
-  if (!hot || hot.status() !== 'idle') {
-    return;
-  }
-
+async function checkForUpdate() {
   try {
+    // Skip if HMR not available or not ready
+    if (!hmr || hmr.status() !== 'idle') {
+      return;
+    }
+
     // Apply HMR updates
-    const updatedModules = await hot.check(true);
+    const updatedModules = await hmr.check(true);
 
     // Log if updates were applied
     if (updatedModules && updatedModules.length > 0 && isVerbose()) {
       logInfo(`🔥 HMR: Updated ${updatedModules.length} module(s)`);
     }
-  } catch (error) {
-    // On HMR failure, reload entire app
-    const currentHot = getHotModule();
-    const status = currentHot && currentHot.status();
 
+    console.log({ updatedModules });
+  } catch (error) {
+    // On HMR failure, log the error
+    const status = hmr ? hmr.status() : 'no-hmr';
+    logError(`HMR update failed (status: ${status}): ${error.message}`);
+
+    // If the error is severe, consider a full reload
     if (status === 'abort' || status === 'fail') {
-      logInfo('⚠️  HMR failed, reloading app...');
-      try {
-        const serverModule = getServerModule();
-        app = await serverModule.initializeApp(expressApp, staticPath);
-        logInfo('✅ App reloaded');
-      } catch (reloadError) {
-        logError(`App reload failed: ${reloadError.message}`);
-      }
-    } else if (isVerbose()) {
-      logError(`HMR error: ${error.message}`);
+      logInfo(
+        '⚠️  HMR in bad state, consider restarting the development server',
+      );
     }
   }
 }
@@ -223,9 +201,9 @@ function setupWebpackCompilers() {
 /**
  * Setup Express middleware for webpack
  */
-function setupWebpackMiddleware(server, clientCompiler) {
+function setupWebpackMiddleware(clientCompiler) {
   // Webpack dev middleware
-  server.use(
+  app.use(
     webpackDevMiddleware(clientCompiler, {
       publicPath: clientConfig.output.publicPath,
       stats: { colors: true, chunks: false, modules: false },
@@ -234,10 +212,10 @@ function setupWebpackMiddleware(server, clientCompiler) {
   );
 
   // Webpack hot middleware
-  server.use(
+  app.use(
     webpackHotMiddleware(clientCompiler, {
       log: isVerbose() ? console.log : false, // eslint-disable-line no-console
-      path: '/__webpack_hmr',
+      path: '/~/__webpack_hmr',
       heartbeat: 10 * 1000,
     }),
   );
@@ -245,10 +223,8 @@ function setupWebpackMiddleware(server, clientCompiler) {
 
 /**
  * Setup SSR middleware compilation hooks
- * Note: In development, routes are set up directly by initializeApp()
- * No delegation middleware needed - server and app are the same Express instance
  */
-function setupSSRMiddleware(server, serverCompiler, staticPath) {
+function setupSSRMiddleware(serverCompiler) {
   // Watch server compiler for changes and auto-reload app
   serverCompiler.watch(serverConfig.watchOptions, async (error, stats) => {
     if (error) {
@@ -265,56 +241,53 @@ function setupSSRMiddleware(server, serverCompiler, staticPath) {
       return;
     }
 
-    // Compilation successful - apply HMR updates if app exists
-    try {
-      if (app) {
-        // App exists - try HMR update
-        await checkForUpdate(server, staticPath);
-      }
-    } catch (err) {
-      logError(`HMR update failed: ${err.message}`);
-    }
+    // Compilation successful
+    await checkForUpdate();
   });
 }
 
 /**
- * Start BrowserSync proxy server
+ * Open the default browser to the dev server URL.
  */
-function startBrowserSync() {
-  return new Promise((resolve, reject) => {
-    const bs = browserSync.create();
+async function openBrowser() {
+  try {
+    const proc = await open(`http://${DEV_CONFIG.host}:${DEV_CONFIG.port}`);
+    if (proc && typeof proc.kill === 'function') {
+      browserProcess = proc;
+      console.log('Opened browser (PID:', proc.pid, ')');
+    } else {
+      browserProcess = null;
+      console.log('Opened browser (no process handle available)');
+    }
+  } catch (error) {
+    throw new BuildError(`Failed to open browser: ${error.message}`, {
+      suggestion: 'Check if your system can launch a browser from the CLI.',
+    });
+  }
+}
 
-    bs.init(
-      {
-        proxy: `http://${DEV_CONFIG.host}:${DEV_CONFIG.port}`,
-        // Let BrowserSync auto-assign port to avoid conflicts
-        host: DEV_CONFIG.host,
-        https: DEV_CONFIG.https,
-        open: DEV_CONFIG.open,
-        notify: false,
-        ui: false,
-        logLevel: silent ? 'silent' : 'info',
-        logPrefix: 'BS',
-        files: false,
-        reloadDelay: 0,
-        reloadDebounce: 0,
-        ghostMode: false,
-        codeSync: true,
-        timestamps: false,
-      },
-      (error, bsInstance) => {
-        if (error) {
-          reject(
-            new BuildError(`BrowserSync failed: ${error.message}`, {
-              suggestion: 'Check if port is available',
-            }),
-          );
-        } else {
-          resolve(bsInstance);
-        }
-      },
-    );
-  });
+/**
+ * Close the browser process.
+ */
+function closeBrowser() {
+  if (
+    browserProcess &&
+    typeof browserProcess.kill === 'function' &&
+    !browserProcess.killed
+  ) {
+    try {
+      browserProcess.kill('SIGTERM');
+      console.log(
+        'Closed browser (SIGTERM sent to PID:',
+        browserProcess.pid,
+        ')',
+      );
+    } catch (err) {
+      console.warn('Failed to close browser process:', err.message);
+    }
+  } else {
+    console.log('No browser process to close or process handle not available.');
+  }
 }
 
 /**
@@ -322,26 +295,28 @@ function startBrowserSync() {
  * This is a long-running task that keeps the process alive
  */
 export default async function main() {
-  if (server) {
+  if (app) {
     logInfo('Development server already running');
-    return server;
+    return app;
   }
 
   const startTime = Date.now();
   logInfo('🚀 Starting development server...');
 
+  // Heartbeat WebSocket for dev tab auto-close
+  let heartbeatWSS = null;
+
   // Setup graceful shutdown handler
-  setupGracefulShutdown(() => {
+  setupGracefulShutdown(async () => {
     logInfo('🛑 Development server shutting down...');
 
-    // Cleanup BrowserSync
-    if (browserSyncInstance) {
-      try {
-        browserSyncInstance.exit();
-        logInfo('   ✅ BrowserSync closed');
-      } catch {
-        // Ignore errors during cleanup
-      }
+    // Cleanup Browser
+    closeBrowser();
+
+    // Cleanup heartbeat WebSocket
+    if (heartbeatWSS) {
+      await new Promise(resolve => heartbeatWSS.close(resolve));
+      logInfo('Heartbeat WebSocket closed.');
     }
 
     logInfo('👋 Goodbye!');
@@ -356,11 +331,42 @@ export default async function main() {
 
     // Create Express server instance
     // This will be passed to the SSR app for middleware setup
-    server = express();
+    app = express();
+
+    app.use((req, res, next) => {
+      // Override default res.send()
+      const originalSend = res.send.bind(res);
+
+      // UX improvement: Show overlay message on dev server disconnect instead of closing window
+      res.send = html => {
+        if (typeof html === 'string' && html.includes('</body>')) {
+          const injected = html.replace(
+            '</body>',
+            `
+<script>
+(function () {
+  try {
+    var ws = new WebSocket("ws://${DEV_CONFIG.host}:${DEV_CONFIG.port}/~/__bs");
+    ws.onclose = () => window.close();
+    ws.onerror = () => window.close();
+  } catch (e) {
+    window.close();
+  }
+})();
+</script>
+      </body>`,
+          );
+          return originalSend(injected);
+        }
+        return originalSend(html);
+      };
+
+      next();
+    });
 
     // Setup webpack dev middleware (HMR, hot reload)
-    setupWebpackMiddleware(server, clientCompiler);
-    setupSSRMiddleware(server, serverCompiler, config.PUBLIC_DIR);
+    setupWebpackMiddleware(clientCompiler);
+    setupSSRMiddleware(serverCompiler);
 
     // Wait for initial webpack compilation
     logInfo('⏳ Waiting for initial compilation...');
@@ -372,17 +378,37 @@ export default async function main() {
 
     // Load and initialize SSR app (after compilation)
     const serverModule = getServerModule();
-    app = await serverModule.initializeApp(server, config.PUBLIC_DIR);
+    await serverModule.initializeApp(app, config.PUBLIC_DIR);
 
     // Start server listening
-    await serverModule.startAppListening(
-      server,
+    const server = await serverModule.startAppListening(
+      app,
       DEV_CONFIG.port,
       DEV_CONFIG.host,
     );
 
-    // Start BrowserSync proxy
-    browserSyncInstance = await startBrowserSync();
+    // Create WebSocket server for dev tab auto-close
+    try {
+      heartbeatWSS = new WebSocket.Server({ server, path: '/~/__bs' });
+    } catch (wsErr) {
+      throw new BuildError(
+        `Failed to create Tab auto-close server: ${wsErr.message}`,
+        {
+          suggestion:
+            'The WebSocket port might be in use. Try a different port or close the conflicting process.',
+        },
+      );
+    }
+
+    // Handle WebSocket server runtime errors
+    heartbeatWSS.on('error', err => {
+      throw new BuildError(`Tab auto-close server error: ${err.message}`, {
+        suggestion: 'Check for network issues or port conflicts.',
+      });
+    });
+
+    // Open browser for dev server
+    await openBrowser();
 
     // Success
     const duration = Date.now() - startTime;
@@ -392,16 +418,10 @@ export default async function main() {
       logInfo(`   🔥 HMR, Live Reload, Error Overlay enabled`);
     }
 
-    return server;
+    return app;
   } catch (error) {
     // Cleanup on error
-    if (browserSyncInstance) {
-      try {
-        browserSyncInstance.exit();
-      } catch {
-        // Ignore errors during cleanup
-      }
-    }
+    closeBrowser();
 
     const devError =
       error instanceof BuildError
